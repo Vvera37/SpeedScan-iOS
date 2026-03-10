@@ -87,3 +87,11 @@ struct ScanButton: View {
         }
     }
 }
+
+// MARK: - 预览
+struct ScanView_Previews: PreviewProvider {
+    static var previews: some View {
+        ScanView()
+            .environmentObject(AppState())
+    }
+}
