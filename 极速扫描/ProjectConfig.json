@@ -1,0 +1,16 @@
+{
+    "bundleIdentifier": "com.yourcompany.speedscan",
+    "version": "1.0.0",
+    "buildNumber": "1",
+    "deploymentTarget": "15.0",
+    "supportedDevices": ["iPhone", "iPad"],
+    "orientation": ["portrait"],
+    "requiredCapabilities": [
+        "armv7",
+        "camera"
+    ],
+    "infoPlist": {
+        "NSCameraUsageDescription": "极速扫描需要访问相机来拍摄文档",
+        "NSPhotoLibraryUsageDescription": "极速扫描需要访问相册来导入图片"
+    }
+}
