@@ -1,57 +1,39 @@
-//
-// 国际化文件 - 中文简体（基础Key）
-// 扩展其他语言时，复制此文件并翻译value部分
-//
+/* 
+  Localizable.strings
+  极速扫描
+  
+  Created by SpeedScan
+*/
 
-/*
- 使用说明：
- 1. 所有界面文字必须通过 LocalizedStringKey 引用
- 2. 格式：Text(LocalizedStringKey("key_name"))
- 3. 未来支持多语言时，创建对应.lproj文件夹和Localizable.strings文件
- */
-
-// MARK: - 应用级
+// App名称
 "app_name" = "极速扫描";
 
-// MARK: - 标签栏
+// Tab标签
 "tab_scan" = "扫描";
 "tab_history" = "历史";
 "tab_settings" = "设置";
 
-// MARK: - 扫描界面
+// 按钮
 "btn_camera" = "拍照";
 "btn_import" = "导入";
-"hint_scan" = "点击拍照或导入图片\n开始文字识别";
-"processing" = "正在识别...";
-
-// MARK: - 结果界面
-"copy_full" = "复制全文";
-"export_word" = "导出Word";
-"share" = "分享";
-"btn_translate" = "翻译为中文";
-
-// MARK: - 错误提示
-"error_image" = "图片处理失败，请重试";
-"error_recognition" = "文字识别失败，请检查图片清晰度";
-
-// MARK: - 登录界面
-"login_title" = "手机号登录";
-"login_hint" = "请输入手机号，我们将发送验证码";
-"btn_send_code" = "发送验证码";
+"btn_send_code" = "获取验证码";
 "btn_login" = "登录";
-"login_success" = "登录成功";
-
-// MARK: - 历史记录
-"history_empty" = "暂无历史记录";
-"history_title" = "识别历史";
-
-// MARK: - 设置界面
-"settings_title" = "设置";
-"upgrade_premium" = "升级会员";
-"premium_price_year" = "¥12/年";
-"premium_price_month" = "¥2/月";
-"premium_benefits" = "会员权益：\n• 去除水印\n• 无限制识别\n• 优先技术支持";
+"btn_translate" = "翻译";
+"export_word" = "导出Word";
+"copy_full" = "复制全文";
+"share" = "分享";
 "logout" = "退出登录";
 
-// MARK: - 水印文字（非付费用户）
-"watermark_text" = "扫描图文、多语言翻译、pdf转word就用 极速扫描app";
+// 提示
+"hint_scan" = "点击拍照或导入图片\n开始文字识别";
+"processing" = "处理中...";
+"ocr_processing" = "正在识别文字，请稍候";
+"history_empty" = "暂无历史记录";
+"history_title" = "历史记录";
+"settings_title" = "设置";
+"premium_benefits" = "开通会员去除水印，享受无限制使用";
+"export_success" = "导出成功！";
+
+// 错误
+"error_image" = "无法处理图片";
+"error_recognition" = "文字识别失败，请重试";

@@ -1,0 +1,21 @@
+# Xcode
+*.xcodeproj
+*.xcworkspace
+*.xcuserdata
+*.xcuserstate
+
+# Build
+.build/
+.swiftpm/
+DerivedData/
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp

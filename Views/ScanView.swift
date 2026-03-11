@@ -9,6 +9,7 @@ struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
     @State private var showImagePicker = false
     @State private var sourceType: UIImagePickerController.SourceType = .camera
+    @EnvironmentObject var appState: AppState
     
     var body: some View {
         NavigationView {
@@ -17,7 +18,7 @@ struct ScanView: View {
                 HStack(spacing: 20) {
                     ScanButton(
                         icon: "camera.fill",
-                        title: LocalizedStringKey("btn_camera"),
+                        title: NSLocalizedString("btn_camera", comment: ""),
                         action: {
                             sourceType = .camera
                             showImagePicker = true
@@ -26,7 +27,7 @@ struct ScanView: View {
                     
                     ScanButton(
                         icon: "photo.fill",
-                        title: LocalizedStringKey("btn_import"),
+                        title: NSLocalizedString("btn_import", comment: ""),
                         action: {
                             sourceType = .photoLibrary
                             showImagePicker = true
@@ -37,21 +38,31 @@ struct ScanView: View {
                 
                 // 扫描结果预览
                 if viewModel.isProcessing {
-                    ProgressView(LocalizedStringKey("processing"))
-                        .scaleEffect(1.2)
-                        .padding()
+                    VStack(spacing: 16) {
+                        ProgressView(NSLocalizedString("processing", comment: ""))
+                            .scaleEffect(1.2)
+                        Text(NSLocalizedString("ocr_processing", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
                 } else if let result = viewModel.scanResult {
                     ScanResultView(result: result, viewModel: viewModel)
                 } else {
                     Spacer()
-                    Text(LocalizedStringKey("hint_scan"))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding()
+                    VStack(spacing: 16) {
+                        Image(systemName: "doc.text.viewfinder")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text(NSLocalizedString("hint_scan", comment: ""))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                    }
                     Spacer()
                 }
             }
-            .navigationTitle(LocalizedStringKey("app_name"))
+            .navigationTitle(NSLocalizedString("app_name", comment: ""))
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: sourceType, selectedImage: $viewModel.selectedImage)
             }
@@ -60,6 +71,9 @@ struct ScanView: View {
                     viewModel.performOCR()
                 }
             }
+            .alert(item: $viewModel.alertItem) { alert in
+                Alert(title: alert.title, message: alert.message, dismissButton: alert.dismissButton)
+            }
         }
     }
 }
@@ -67,7 +81,7 @@ struct ScanView: View {
 // MARK: - 扫描按钮
 struct ScanButton: View {
     let icon: String
-    let title: LocalizedStringKey
+    let title: String
     let action: () -> Void
     
     var body: some View {
@@ -77,14 +91,22 @@ struct ScanButton: View {
                     .font(.system(size: 40))
                     .foregroundColor(.white)
                     .frame(width: 80, height: 80)
-                    .background(Color.blue)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .cornerRadius(20)
+                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
                 
                 Text(title)
                     .font(.subheadline)
                     .foregroundColor(.primary)
             }
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

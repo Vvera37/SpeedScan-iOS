@@ -30,23 +30,29 @@ struct MainTabView: View {
             ScanView()
                 .tabItem {
                     Image(systemName: "camera.fill")
-                    Text(LocalizedStringKey("tab_scan"))
+                    Text(NSLocalizedString("tab_scan", comment: ""))
                 }
                 .tag(0)
             
             HistoryView()
                 .tabItem {
                     Image(systemName: "doc.text.fill")
-                    Text(LocalizedStringKey("tab_history"))
+                    Text(NSLocalizedString("tab_history", comment: ""))
                 }
                 .tag(1)
             
             SettingsView()
                 .tabItem {
                     Image(systemName: "gearshape.fill")
-                    Text(LocalizedStringKey("tab_settings"))
+                    Text(NSLocalizedString("tab_settings", comment: ""))
                 }
                 .tag(2)
         }
     }
+}
+
+// MARK: - Preview
+#Preview {
+    ContentView()
+        .environmentObject(AppState())
 }

@@ -10,6 +10,7 @@ struct ScanResultView: View {
     @State private var showTranslation = false
     @State private var translatedText: String = ""
     @State private var isTranslating = false
+    @State private var showExportSuccess = false
     @EnvironmentObject var appState: AppState
     
     var body: some View {
@@ -24,11 +25,21 @@ struct ScanResultView: View {
                         .padding()
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
                         .contextMenu {
                             Button(action: {
                                 UIPasteboard.general.string = result.recognizedText
                             }) {
-                                Label(LocalizedStringKey("copy_full"), systemImage: "doc.on.doc")
+                                Label(NSLocalizedString("copy_full", comment: ""), systemImage: "doc.on.doc")
+                            }
+                            
+                            Button(action: {
+                                viewModel.shareResult(result: result)
+                            }) {
+                                Label(NSLocalizedString("share", comment: ""), systemImage: "square.and.arrow.up")
                             }
                         }
                     
@@ -37,7 +48,7 @@ struct ScanResultView: View {
                         Button(action: translateText) {
                             HStack {
                                 Image(systemName: "translate")
-                                Text(LocalizedStringKey("btn_translate"))
+                                Text(NSLocalizedString("btn_translate", comment: ""))
                                 if isTranslating {
                                     Spacer()
                                     ProgressView()
@@ -74,27 +85,48 @@ struct ScanResultView: View {
             HStack(spacing: 20) {
                 ActionButton(
                     icon: "doc.on.doc",
-                    title: LocalizedStringKey("copy_full"),
+                    title: NSLocalizedString("copy_full", comment: ""),
                     action: {
                         UIPasteboard.general.string = result.recognizedText
+                        viewModel.showToast("已复制到剪贴板")
                     }
                 )
                 
                 ActionButton(
                     icon: "doc.text",
-                    title: LocalizedStringKey("export_word"),
+                    title: NSLocalizedString("export_word", comment: ""),
                     action: exportToWord
                 )
                 
                 ActionButton(
                     icon: "square.and.arrow.up",
-                    title: LocalizedStringKey("share"),
-                    action: shareResult
+                    title: NSLocalizedString("share", comment: ""),
+                    action: {
+                        viewModel.shareResult(result: result)
+                    }
                 )
             }
             .padding()
             .background(Color(.systemGray6))
         }
+        .overlay(
+            // 导出成功提示
+            VStack {
+                if showExportSuccess {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text(NSLocalizedString("export_success", comment: ""))
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .shadow(radius: 5)
+                    .padding(.top, 20)
+                    Spacer()
+                }
+            }
+        )
     }
     
     // MARK: - 翻译功能
@@ -121,18 +153,23 @@ struct ScanResultView: View {
     // MARK: - 导出Word
     private func exportToWord() {
         // 生成Word文档逻辑
-        // 保存到本地并记录到历史
-    }
-    
-    // MARK: - 分享
-    private func shareResult() {
-        let items: [Any] = [result.recognizedText]
-        let ac = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        
-        // 获取当前窗口场景
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(ac, animated: true)
+        viewModel.exportToWord(result: result) { success, filePath in
+            if success, let path = filePath {
+                // 添加到历史记录
+                let record = ScanRecord(
+                    id: UUID(),
+                    timestamp: Date(),
+                    wordFilePath: path,
+                    previewText: result.recognizedText,
+                    detectedLanguage: result.detectedLanguage
+                )
+                appState.addScanRecord(record)
+                
+                showExportSuccess = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    showExportSuccess = false
+                }
+            }
         }
     }
 }
@@ -153,7 +190,7 @@ struct WatermarkView: View {
 // MARK: - 操作按钮
 struct ActionButton: View {
     let icon: String
-    let title: LocalizedStringKey
+    let title: String
     let action: () -> Void
     
     var body: some View {

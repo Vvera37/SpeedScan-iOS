@@ -7,6 +7,7 @@ import SwiftUI
 struct HistoryView: View {
     @EnvironmentObject var appState: AppState
     @State private var searchText: String = ""
+    @State private var selectedRecord: ScanRecord?
     
     var filteredRecords: [ScanRecord] {
         if searchText.isEmpty {
@@ -30,8 +31,8 @@ struct HistoryView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "doc.text.magnifyingglass")
                             .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        Text(LocalizedStringKey("history_empty"))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text(NSLocalizedString("history_empty", comment: ""))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
@@ -40,18 +41,22 @@ struct HistoryView: View {
                     List {
                         ForEach(filteredRecords) { record in
                             HistoryRow(record: record)
+                                .onTapGesture {
+                                    selectedRecord = record
+                                }
                         }
                         .onDelete(perform: deleteRecords)
                     }
                     .listStyle(PlainListStyle())
                 }
             }
-            .navigationTitle(LocalizedStringKey("history_title"))
+            .navigationTitle(NSLocalizedString("history_title", comment: ""))
         }
     }
     
     private func deleteRecords(at offsets: IndexSet) {
-        // 删除记录逻辑
+        appState.scanHistory.remove(atOffsets: offsets)
+        appState.saveHistory()
     }
 }
 
@@ -93,13 +98,7 @@ struct HistoryRow: View {
                 
                 Spacer()
                 
-                Text(record.detectedLanguage)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(4)
+                LanguageTag(language: record.detectedLanguage)
             }
             
             Text(record.previewText.prefix(100) + (record.previewText.count > 100 ? "..." : ""))
@@ -107,5 +106,37 @@ struct HistoryRow: View {
                 .lineLimit(3)
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - 语言标签
+struct LanguageTag: View {
+    let language: String
+    
+    var displayName: String {
+        switch language {
+        case "zh-Hans", "zh-Hant": return "中文"
+        case "en": return "English"
+        case "ja": return "日本語"
+        case "ko": return "한국어"
+        default: return language
+        }
+    }
+    
+    var body: some View {
+        Text(displayName)
+            .font(.caption2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.blue.opacity(0.1))
+            .foregroundColor(.blue)
+            .cornerRadius(4)
+    }
+}
+
+struct HistoryView_Previews: PreviewProvider {
+    static var previews: some View {
+        HistoryView()
+            .environmentObject(AppState())
     }
 }

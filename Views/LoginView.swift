@@ -11,6 +11,8 @@ struct LoginView: View {
     @State private var isSendingCode = false
     @State private var countdown = 0
     @State private var showCodeInput = false
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     var body: some View {
         NavigationView {
@@ -20,8 +22,9 @@ struct LoginView: View {
                     Image(systemName: "doc.text.viewfinder")
                         .font(.system(size: 80))
                         .foregroundColor(.blue)
+                        .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 10)
                     
-                    Text(LocalizedStringKey("app_name"))
+                    Text(NSLocalizedString("app_name", comment: ""))
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
@@ -81,13 +84,17 @@ struct LoginView: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         }
-                        Text(showCodeInput ? LocalizedStringKey("btn_login") : LocalizedStringKey("btn_send_code"))
+                        Text(showCodeInput ? NSLocalizedString("btn_login", comment: "") : NSLocalizedString("btn_send_code", comment: ""))
                             .fontWeight(.semibold)
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(isValidPhone ? Color.blue : Color.gray)
+                    .background(
+                        isValidPhone ? 
+                            LinearGradient(gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]), startPoint: .leading, endPoint: .trailing) :
+                            LinearGradient(gradient: Gradient(colors: [.gray, .gray.opacity(0.8)]), startPoint: .leading, endPoint: .trailing)
+                    )
                     .cornerRadius(12)
                 }
                 .disabled(!isValidPhone || isSendingCode)
@@ -103,6 +110,11 @@ struct LoginView: View {
             }
             .padding()
             .navigationBarHidden(true)
+            .alert("提示", isPresented: $showError) {
+                Button("确定", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
@@ -124,6 +136,12 @@ struct LoginView: View {
             
             // 实际应调用短信API
             print("验证码已发送至: \(phoneNumber)")
+            
+            // 演示模式：直接显示验证码
+            #if DEBUG
+            errorMessage = "演示模式，验证码：123456"
+            showError = true
+            #endif
         }
     }
     
@@ -147,15 +165,33 @@ struct LoginView: View {
         }
         
         // 验证验证码（实际应调用后端API）
-        guard verificationCode.count == 6 else { return }
+        guard verificationCode.count == 6 else {
+            errorMessage = "请输入6位验证码"
+            showError = true
+            return
+        }
         
-        // 登录成功
-        appState.isLoggedIn = true
-        // 设置90天有效期
-        appState.sessionExpiry = Calendar.current.date(byAdding: .day, value: 90, to: Date())
-        
-        // 保存登录状态到本地
-        UserDefaults.standard.set(phoneNumber, forKey: "user_phone")
-        UserDefaults.standard.set(appState.sessionExpiry, forKey: "session_expiry")
+        // 演示模式：接受任何6位数字
+        // 实际应调用后端API验证
+        if verificationCode == "123456" || verificationCode.count == 6 {
+            // 登录成功
+            appState.isLoggedIn = true
+            // 设置90天有效期
+            appState.sessionExpiry = Calendar.current.date(byAdding: .day, value: 90, to: Date())
+            
+            // 保存登录状态到本地
+            UserDefaults.standard.set(phoneNumber, forKey: "user_phone")
+            UserDefaults.standard.set(appState.sessionExpiry, forKey: "session_expiry")
+        } else {
+            errorMessage = "验证码错误"
+            showError = true
+        }
+    }
+}
+
+struct LoginView_Previews: PreviewProvider {
+    static var previews: some View {
+        LoginView()
+            .environmentObject(AppState())
     }
 }

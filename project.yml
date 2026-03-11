@@ -1,0 +1,34 @@
+name: 极速扫描
+targets:
+  极速扫描:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: 极速扫描
+        excludes:
+          - "**/.*"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.speedscan.app
+        INFOPLIST_FILE: 极速扫描/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_VERSION: "5.7"
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: 极速扫描/Info.plist
+      properties:
+        CFBundleDisplayName: 极速扫描
+        LSRequiresIPhoneOS: true
+        UIRequiredDeviceCapabilities: [armv7]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: 需要访问相机以拍摄文档进行文字识别
+        NSPhotoLibraryUsageDescription: 需要访问相册以选择图片进行文字识别
+    scheme:
+      testTargets: []
+settings:
+  MARKETING_VERSION: "1.0.0"
+  CURRENT_PROJECT_VERSION: "1"
