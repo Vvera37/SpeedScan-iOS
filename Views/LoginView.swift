@@ -1,154 +1,278 @@
 //
-// 登录界面 - 手机号免密登录
+// LoginView.swift
+// 手机号登录 — 完整实现，含 API 调用 + Keychain 存储
 //
 
 import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var appState: AppState
+
     @State private var phoneNumber: String = ""
     @State private var verificationCode: String = ""
-    @State private var isSendingCode = false
-    @State private var countdown = 0
-    @State private var showCodeInput = false
-    @State private var showError = false
-    @State private var errorMessage = ""
-    
+    @State private var showCodeInput: Bool = false
+    @State private var isLoading: Bool = false
+    @State private var countdown: Int = 0
+    @State private var countdownTimer: Timer?
+    @State private var errorMessage: String = ""
+    @State private var showError: Bool = false
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 30) {
-                // Logo区域
-                VStack(spacing: 16) {
-                    Image(systemName: "doc.text.viewfinder")
-                        .font(.system(size: 80))
-                        .foregroundColor(.blue)
-                        .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 10)
-                    
-                    Text(NSLocalizedString("app_name", comment: ""))
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("更快、更准确、更便宜")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 60)
-                
-                // 输入区域
-                VStack(spacing: 20) {
-                    // 手机号输入
-                    HStack {
-                        Text("+86")
+        ZStack {
+            // 背景
+            LinearGradient(
+                colors: [Color(hex: "#F2F2F7"), Color.white],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 0) {
+
+                    // MARK: Logo 区域
+                    VStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#007AFF").opacity(0.12))
+                                .frame(width: 120, height: 120)
+                            Image(systemName: "camera.viewfinder")
+                                .font(.system(size: 56, weight: .medium))
+                                .foregroundColor(Color(hex: "#007AFF"))
+                        }
+                        .padding(.top, 80)
+
+                        Text("扫描鸡")
+                            .font(.system(size: 34, weight: .bold))
+
+                        Text("智能 OCR · 扫描识别 · PDF 转 Word")
+                            .font(.system(size: 15))
                             .foregroundColor(.secondary)
-                            .padding(.leading, 12)
-                        
-                        TextField("请输入手机号", text: $phoneNumber)
-                            .keyboardType(.numberPad)
-                            .textContentType(.telephoneNumber)
-                            .onChange(of: phoneNumber) { newValue in
-                                // 限制11位
-                                if newValue.count > 11 {
-                                    phoneNumber = String(newValue.prefix(11))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.bottom, 48)
+
+                    // MARK: 表单卡片
+                    VStack(spacing: 16) {
+                        // 手机号输入
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("手机号")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                            HStack(spacing: 12) {
+                                // +86 前缀
+                                Text("+86")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Color(hex: "#007AFF"))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 14)
+                                    .background(Color(hex: "#007AFF").opacity(0.08))
+                                    .cornerRadius(10)
+
+                                TextField("请输入手机号", text: $phoneNumber)
+                                    .keyboardType(.numberPad)
+                                    .textContentType(.telephoneNumber)
+                                    .font(.system(size: 16))
+                                    .onChange(of: phoneNumber) { _, newValue in
+                                        phoneNumber = String(newValue.filter { $0.isNumber }.prefix(11))
+                                    }
+                            }
+                            .padding(4)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        }
+
+                        // 验证码输入（发送后显示）
+                        if showCodeInput {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("验证码")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                HStack {
+                                    TextField("请输入6位验证码", text: $verificationCode)
+                                        .keyboardType(.numberPad)
+                                        .font(.system(size: 16))
+                                        .onChange(of: verificationCode) { _, newValue in
+                                            verificationCode = String(newValue.filter { $0.isNumber }.prefix(6))
+                                        }
+                                    Spacer()
+                                    Button(action: { Task { await sendCode() } }) {
+                                        Text(countdown > 0 ? "\(countdown)s 后重发" : "重新发送")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(countdown > 0 ? .secondary : Color(hex: "#007AFF"))
+                                    }
+                                    .disabled(countdown > 0 || isLoading)
                                 }
-                                // 只允许数字
-                                phoneNumber = newValue.filter { $0.isNumber }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                             }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
-                    
-                    // 验证码输入（发送后显示）
-                    if showCodeInput {
-                        HStack {
-                            TextField("请输入验证码", text: $verificationCode)
-                                .keyboardType(.numberPad)
-                            
-                            Button(action: sendVerificationCode) {
-                                Text(countdown > 0 ? "\(countdown)s" : "重新发送")
-                                    .foregroundColor(countdown > 0 ? .gray : .blue)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .top).combined(with: .opacity),
+                                removal: .opacity
+                            ))
+                        }
+
+                        // 主操作按钮
+                        Button(action: { Task { await primaryAction() } }) {
+                            HStack(spacing: 10) {
+                                if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.9)
+                                }
+                                Text(showCodeInput ? "登录" : "获取验证码")
+                                    .font(.system(size: 17, weight: .semibold))
                             }
-                            .disabled(countdown > 0 || isSendingCode)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                isValidPhone
+                                    ? LinearGradient(
+                                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                        startPoint: .leading, endPoint: .trailing
+                                      )
+                                    : LinearGradient(
+                                        colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.4)],
+                                        startPoint: .leading, endPoint: .trailing
+                                      )
+                            )
+                            .cornerRadius(14)
+                            .shadow(
+                                color: isValidPhone ? Color(hex: "#007AFF").opacity(0.35) : .clear,
+                                radius: 10, x: 0, y: 5
+                            )
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
+                        .disabled(!isValidPhone || isLoading)
+                        .animation(.easeInOut(duration: 0.2), value: isValidPhone)
                     }
-                }
-                .padding(.horizontal)
-                
-                // 登录按钮
-                Button(action: performLogin) {
-                    HStack {
-                        if isSendingCode {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .padding(.horizontal, 28)
+
+                    // MARK: 隐私条款
+                    VStack(spacing: 8) {
+                        Text("登录即表示同意")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Link("《用户协议》", destination: URL(string: "https://saomiaoji.com/terms")!)
+                            Text("和")
+                                .foregroundColor(.secondary)
+                            Link("《隐私政策》", destination: URL(string: "https://saomiaoji.com/privacy")!)
                         }
-                        Text(showCodeInput ? NSLocalizedString("btn_login", comment: "") : NSLocalizedString("btn_send_code", comment: ""))
-                            .fontWeight(.semibold)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "#007AFF"))
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        isValidPhone ? 
-                            LinearGradient(gradient: Gradient(colors: [.blue, .blue.opacity(0.8)]), startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(gradient: Gradient(colors: [.gray, .gray.opacity(0.8)]), startPoint: .leading, endPoint: .trailing)
-                    )
-                    .cornerRadius(12)
+                    .padding(.top, 32)
+                    .padding(.bottom, 40)
                 }
-                .disabled(!isValidPhone || isSendingCode)
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // 隐私提示
-                Text("登录即表示同意《用户协议》和《隐私政策》")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.bottom, 20)
-            }
-            .padding()
-            .navigationBarHidden(true)
-            .alert("提示", isPresented: $showError) {
-                Button("确定", role: .cancel) {}
-            } message: {
-                Text(errorMessage)
             }
         }
+        .alert("提示", isPresented: $showError) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showCodeInput)
     }
-    
-    // MARK: - 验证手机号格式
+
+    // MARK: - 验证手机号
     private var isValidPhone: Bool {
         let regex = "^1[3-9]\\d{9}$"
         return phoneNumber.range(of: regex, options: .regularExpression) != nil
     }
-    
+
+    // MARK: - 主操作（发送码 or 登录）
+    private func primaryAction() async {
+        if showCodeInput {
+            await performLogin()
+        } else {
+            await sendCode()
+        }
+    }
+
     // MARK: - 发送验证码
-    private func sendVerificationCode() {
-        isSendingCode = true
-        
-        // 模拟发送验证码
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isSendingCode = false
-            showCodeInput = true
-            startCountdown()
-            
-            // 实际应调用短信API
-            print("验证码已发送至: \(phoneNumber)")
-            
-            // 演示模式：直接显示验证码
+    private func sendCode() async {
+        guard isValidPhone else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            // ⚠️ 后端未上线时会 throw 网络错误，DEBUG 下走 fallback
             #if DEBUG
-            errorMessage = "演示模式，验证码：123456"
-            showError = true
+            // 模拟发送成功
+            try await Task.sleep(nanoseconds: 800_000_000)
+            #else
+            try await AuthService.sendCode(phone: phoneNumber)
+            #endif
+
+            await MainActor.run {
+                showCodeInput = true
+                startCountdown()
+            }
+        } catch {
+            #if DEBUG
+            // DEBUG 模式降级：仍然展示验证码输入框
+            await MainActor.run {
+                showCodeInput = true
+                startCountdown()
+                errorMessage = "【调试模式】验证码已发送（使用 123456 登录）"
+                showError = true
+            }
+            #else
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
             #endif
         }
     }
-    
-    // MARK: - 开始倒计时
+
+    // MARK: - 执行登录
+    private func performLogin() async {
+        guard verificationCode.count == 6 else {
+            errorMessage = "请输入6位验证码"
+            showError = true
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            #if DEBUG
+            // 调试模式：接受任意6位数字，生成假 Token
+            try await Task.sleep(nanoseconds: 600_000_000)
+            let fakeToken = "debug_token_\(UUID().uuidString)"
+            let expiry = Calendar.current.date(byAdding: .day, value: 90, to: Date())
+            await MainActor.run {
+                appState.saveSession(token: fakeToken, phone: phoneNumber, expiresAt: expiry)
+            }
+            #else
+            let response = try await AuthService.login(phone: phoneNumber, code: verificationCode)
+            await MainActor.run {
+                appState.saveSession(
+                    token: response.token,
+                    phone: phoneNumber,
+                    expiresAt: response.expiryDate
+                )
+            }
+            #endif
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+    }
+
+    // MARK: - 倒计时
     private func startCountdown() {
         countdown = 60
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+        countdownTimer?.invalidate()
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
             if countdown > 0 {
                 countdown -= 1
             } else {
@@ -156,42 +280,10 @@ struct LoginView: View {
             }
         }
     }
-    
-    // MARK: - 执行登录
-    private func performLogin() {
-        if !showCodeInput {
-            sendVerificationCode()
-            return
-        }
-        
-        // 验证验证码（实际应调用后端API）
-        guard verificationCode.count == 6 else {
-            errorMessage = "请输入6位验证码"
-            showError = true
-            return
-        }
-        
-        // 演示模式：接受任何6位数字
-        // 实际应调用后端API验证
-        if verificationCode == "123456" || verificationCode.count == 6 {
-            // 登录成功
-            appState.isLoggedIn = true
-            // 设置90天有效期
-            appState.sessionExpiry = Calendar.current.date(byAdding: .day, value: 90, to: Date())
-            
-            // 保存登录状态到本地
-            UserDefaults.standard.set(phoneNumber, forKey: "user_phone")
-            UserDefaults.standard.set(appState.sessionExpiry, forKey: "session_expiry")
-        } else {
-            errorMessage = "验证码错误"
-            showError = true
-        }
-    }
 }
 
-struct LoginView_Previews: PreviewProvider {
-    static var previews: some View {
-        LoginView()
-            .environmentObject(AppState())
-    }
+// MARK: - Preview
+#Preview {
+    LoginView()
+        .environmentObject(AppState())
 }

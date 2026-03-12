@@ -1,53 +1,50 @@
 //
-// 主界面
+// ContentView.swift
+// 主入口：登录判断 + 3 Tab 导航
 //
 
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
-    
+
     var body: some View {
         Group {
-            if !appState.isLoggedIn {
-                LoginView()
-            } else {
+            if appState.isLoggedIn {
                 MainTabView()
+            } else {
+                LoginView()
             }
         }
-        .onAppear {
-            appState.checkSession()
-        }
+        .animation(.easeInOut(duration: 0.3), value: appState.isLoggedIn)
     }
 }
 
 // MARK: - 主标签页
 struct MainTabView: View {
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             ScanView()
                 .tabItem {
-                    Image(systemName: "camera.fill")
-                    Text(NSLocalizedString("tab_scan", comment: ""))
+                    Label("扫描", systemImage: "camera.viewfinder")
                 }
                 .tag(0)
-            
+
             HistoryView()
                 .tabItem {
-                    Image(systemName: "doc.text.fill")
-                    Text(NSLocalizedString("tab_history", comment: ""))
+                    Label("历史", systemImage: "clock")
                 }
                 .tag(1)
-            
-            SettingsView()
+
+            ProfileView()
                 .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text(NSLocalizedString("tab_settings", comment: ""))
+                    Label("我的", systemImage: "person.circle")
                 }
                 .tag(2)
         }
+        .accentColor(Color(hex: "#007AFF"))
     }
 }
 
@@ -55,4 +52,5 @@ struct MainTabView: View {
 #Preview {
     ContentView()
         .environmentObject(AppState())
+        .environmentObject(SubscriptionManager())
 }

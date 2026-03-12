@@ -48,5 +48,11 @@
     <string>需要访问相机以拍摄文档进行文字识别</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>需要访问相册以选择图片进行文字识别</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>需要访问相册以保存扫描结果</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
 </dict>
 </plist>

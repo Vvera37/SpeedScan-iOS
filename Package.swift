@@ -7,13 +7,18 @@ let package = Package(
     products: [
         .library(name: "SpeedScan", targets: ["SpeedScan"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.0")
+    ],
     targets: [
         .target(
             name: "SpeedScan",
+            dependencies: [
+                .product(name: "ZIPFoundation", package: "ZIPFoundation")
+            ],
             path: ".",
-            exclude: ["Info.plist", "Resources", "Package.swift", "project.yml", "setup-xcode.sh", "README.md"],
-            sources:["Views", "ViewModels", "Components", "SpeedScanApp.swift"]
+            exclude: ["Info.plist", "Resources", "Package.swift", "project.yml", "setup-xcode.sh", "README.md", "prototype"],
+            sources: ["Views", "ViewModels", "Components", "Services", "Models", "SpeedScanApp.swift"]
         )
     ]
 )

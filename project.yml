@@ -5,30 +5,43 @@ targets:
     platform: iOS
     deploymentTarget: "16.0"
     sources:
-      - path: 极速扫描
-        excludes:
-          - "**/.*"
+      - path: SpeedScanApp.swift
+      - path: Views
+      - path: ViewModels
+      - path: Models
+      - path: Services
+      - path: Components
+      - path: Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.speedscan.app
-        INFOPLIST_FILE: 极速扫描/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.saomiaoji.app
+        INFOPLIST_FILE: Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        SWIFT_VERSION: "5.7"
+        SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
     info:
-      path: 极速扫描/Info.plist
+      path: Info.plist
       properties:
-        CFBundleDisplayName: 极速扫描
+        CFBundleDisplayName: 扫描鸡
+        CFBundleName: 极速扫描
         LSRequiresIPhoneOS: true
         UIRequiredDeviceCapabilities: [armv7]
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
         NSCameraUsageDescription: 需要访问相机以拍摄文档进行文字识别
         NSPhotoLibraryUsageDescription: 需要访问相册以选择图片进行文字识别
+        NSPhotoLibraryAddUsageDescription: 需要访问相册以保存扫描结果
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
     scheme:
       testTargets: []
+    # ZIPFoundation 依赖通过 Xcode SPM 面板添加：
+    # File > Add Package Dependencies > https://github.com/weichsel/ZIPFoundation.git (0.9.0+)
+    # 或在 Xcode project.pbxproj 中配置 Swift Package 引用
 settings:
   MARKETING_VERSION: "1.0.0"
   CURRENT_PROJECT_VERSION: "1"
