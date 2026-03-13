@@ -381,14 +381,7 @@ struct SubscriptionCard: View {
             .disabled(subscriptionManager.isLoading)
             .buttonStyle(ScaleButtonStyle())
 
-            // 恢复购买（低调文字）
-            Button(action: {
-                Task { await subscriptionManager.restorePurchases() }
-            }) {
-                Text("已购买？点此恢复")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
+
         }
         .padding(20)
         .background(Color.white)
