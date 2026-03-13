@@ -50,6 +50,21 @@ struct HistoryView: View {
             }
             .navigationTitle("历史记录")
             .navigationBarTitleDisplayMode(.large)
+            .safeAreaInset(edge: .bottom) {
+                // 隐私说明栏
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#34C759"))
+                    Text("所有文档仅存储在您的手机本地，不会上传云端，只有您本人可以查看")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial)
+            }
             .quickLookPreview($quickLookURL)
         }
     }

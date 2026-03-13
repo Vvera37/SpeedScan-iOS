@@ -2,10 +2,6 @@
 // ProfileView.swift
 // 「我的」Tab — 会员购买 + 账号信息 + StoreKit 2
 //
-// ⚠️ StoreKit 测试说明：
-//   真机测试需在 Xcode -> Product -> Scheme -> Edit Scheme -> Run -> StoreKit Configuration
-//   中配置 .storekit 文件，或在 App Store Connect 创建对应 Product ID。
-//
 
 import SwiftUI
 import StoreKit
@@ -14,7 +10,7 @@ struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var showLogoutConfirm = false
-    @State private var showPurchaseError = false
+    @State private var showLoginSheet = false
 
     var body: some View {
         NavigationStack {
@@ -27,24 +23,29 @@ struct ProfileView: View {
                         // MARK: 用户信息卡
                         UserInfoCard(
                             phone: appState.userPhone,
+                            isLoggedIn: appState.isLoggedIn,
                             isPremium: subscriptionManager.isPremium
-                        )
+                        ) {
+                            showLoginSheet = true
+                        }
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                        // MARK: 会员卡（非会员时展示购买）
+                        // MARK: 会员卡
                         if subscriptionManager.isPremium {
-                            PremiumBadgeCard()
-                                .padding(.horizontal, 20)
+                            // 已是会员：展示状态 + 续费选项
+                            PremiumStatusCard(
+                                subscriptionManager: subscriptionManager
+                            )
+                            .padding(.horizontal, 20)
                         } else {
+                            // 未开通：展示购买卡片
                             SubscriptionCard(
-                                monthlyProduct: subscriptionManager.monthlyProduct,
-                                yearlyProduct: subscriptionManager.yearlyProduct,
-                                isLoading: subscriptionManager.isLoading
-                            ) { product in
-                                Task { await subscriptionManager.purchase(product: product) }
-                            } onRestore: {
-                                Task { await subscriptionManager.restorePurchases() }
+                                subscriptionManager: subscriptionManager
+                            ) {
+                                if !appState.isLoggedIn {
+                                    showLoginSheet = true
+                                }
                             }
                             .padding(.horizontal, 20)
                         }
@@ -94,19 +95,22 @@ struct ProfileView: View {
             }
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showLoginSheet) {
+                LoginView().environmentObject(appState)
+            }
             .confirmationDialog("确认退出登录？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("退出登录", role: .destructive) { appState.logout() }
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("退出后需要重新验证手机号")
             }
-            .alert("购买失败", isPresented: $showPurchaseError) {
-                Button("确定", role: .cancel) {}
+            .alert("购买失败", isPresented: .init(
+                get: { subscriptionManager.purchaseError != nil },
+                set: { if !$0 { subscriptionManager.purchaseError = nil } }
+            )) {
+                Button("确定", role: .cancel) { subscriptionManager.purchaseError = nil }
             } message: {
                 Text(subscriptionManager.purchaseError ?? "")
-            }
-            .onChange(of: subscriptionManager.purchaseError) { _, error in
-                showPurchaseError = error != nil
             }
         }
     }
@@ -119,93 +123,183 @@ struct ProfileView: View {
 // MARK: - 用户信息卡
 struct UserInfoCard: View {
     let phone: String
+    let isLoggedIn: Bool
     let isPremium: Bool
+    let onLoginTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
-            // 头像
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#007AFF").opacity(0.15))
-                    .frame(width: 60, height: 60)
-                Image(systemName: "person.fill")
-                    .font(.system(size: 26))
-                    .foregroundColor(Color(hex: "#007AFF"))
-            }
+        Button(action: { if !isLoggedIn { onLoginTap() } }) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(isPremium
+                              ? Color.yellow.opacity(0.2)
+                              : Color(hex: "#007AFF").opacity(0.15))
+                        .frame(width: 60, height: 60)
+                    Image(systemName: isPremium ? "crown.fill" : "person.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(isPremium ? .yellow : Color(hex: "#007AFF"))
+                }
 
-            VStack(alignment: .leading, spacing: 6) {
-                if phone.isEmpty {
-                    Text("未登录")
-                        .font(.system(size: 18, weight: .semibold))
-                } else {
-                    Text(phone.maskedPhone)
-                        .font(.system(size: 18, weight: .semibold))
-                }
-                if isPremium {
-                    HStack(spacing: 4) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
-                        Text("会员用户")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 6) {
+                    if !isLoggedIn {
+                        Text("未登录")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("点击登录，保障数据安全")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(phone.maskedPhone)
+                            .font(.system(size: 18, weight: .semibold))
+                        if isPremium {
+                            HStack(spacing: 4) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.yellow)
+                                Text("尊贵会员")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.orange)
+                            }
+                        } else {
+                            Text("免费用户")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                } else {
-                    Text("免费用户")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if !isLoggedIn {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary.opacity(0.5))
                 }
             }
-            Spacer()
+            .padding(20)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
-        .padding(20)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .buttonStyle(.plain)
     }
 }
 
-// MARK: - 已购会员卡
-struct PremiumBadgeCard: View {
+// MARK: - 已开通会员卡（可续费）
+struct PremiumStatusCard: View {
+    @ObservedObject var subscriptionManager: SubscriptionManager
+    @State private var selectedProduct: Product?
+
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 32))
-                .foregroundColor(.yellow)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("已开通会员")
-                    .font(.system(size: 17, weight: .semibold))
-                Text("享受无水印导出 · 翻译无限制")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+        VStack(spacing: 16) {
+            // 顶部状态
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.yellow.opacity(0.2))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.yellow)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("尊贵会员")
+                            .font(.system(size: 17, weight: .bold))
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 15))
+                    }
+                    if let expiry = subscriptionManager.expiryDate {
+                        Text("有效期至 \(expiry.formatted(.dateTime.year().month().day()))")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
             }
-            Spacer()
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 24))
-                .foregroundColor(.green)
+
+            Divider()
+
+            // 续费选项
+            Text("续费会员")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                PriceCard(
+                    title: "月度会员",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
+                    period: "/月",
+                    tag: nil,
+                    isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
+                ) {
+                    selectedProduct = subscriptionManager.monthlyProduct
+                }
+                PriceCard(
+                    title: "年度会员",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
+                    period: "/年",
+                    tag: "省66%",
+                    isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
+                            || selectedProduct == nil
+                ) {
+                    selectedProduct = subscriptionManager.yearlyProduct
+                }
+            }
+
+            // 购买按钮
+            Button(action: {
+                let target = selectedProduct ?? subscriptionManager.yearlyProduct
+                if let product = target {
+                    Task { await subscriptionManager.purchase(product: product) }
+                }
+            }) {
+                HStack(spacing: 8) {
+                    if subscriptionManager.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.85)
+                    } else {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 15))
+                    }
+                    Text(subscriptionManager.isLoading ? "处理中…" : "马上续费")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "#FF9500"), Color(hex: "#FF6B00")],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .cornerRadius(13)
+                .shadow(color: Color(hex: "#FF9500").opacity(0.4), radius: 8, x: 0, y: 4)
+            }
+            .disabled(subscriptionManager.isLoading)
         }
         .padding(20)
         .background(
             LinearGradient(
-                colors: [Color.yellow.opacity(0.15), Color.orange.opacity(0.1)],
-                startPoint: .leading, endPoint: .trailing
+                colors: [Color.yellow.opacity(0.08), Color.orange.opacity(0.05)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
         )
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.yellow.opacity(0.4), lineWidth: 1)
+                .stroke(Color.yellow.opacity(0.35), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 
-// MARK: - 订阅购买卡片
+// MARK: - 未开通订阅购买卡片
 struct SubscriptionCard: View {
-    let monthlyProduct: Product?
-    let yearlyProduct: Product?
-    let isLoading: Bool
-    let onPurchase: (Product) -> Void
-    let onRestore: () -> Void
+    @ObservedObject var subscriptionManager: SubscriptionManager
+    @State private var selectedProduct: Product?
+    let onNeedLogin: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -213,55 +307,86 @@ struct SubscriptionCard: View {
             HStack {
                 Image(systemName: "crown.fill")
                     .foregroundColor(.yellow)
+                    .font(.system(size: 20))
                 Text("开通会员")
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
             }
 
             // 会员权益
-            VStack(spacing: 8) {
-                BenefitRow(icon: "doc.text.fill", text: "无水印导出 Word 文档")
-                BenefitRow(icon: "character.bubble.fill", text: "多语言翻译无限制")
-                BenefitRow(icon: "doc.richtext.fill", text: "PDF 多页批量转换")
+            VStack(spacing: 10) {
+                BenefitRow(icon: "doc.text.fill", iconColor: Color(hex: "#007AFF"), text: "无水印导出 Word 文档")
+                BenefitRow(icon: "character.bubble.fill", iconColor: Color(hex: "#34C759"), text: "多语言翻译无限制")
+                BenefitRow(icon: "doc.richtext.fill", iconColor: Color(hex: "#FF9500"), text: "PDF 多页批量转换")
             }
 
             Divider()
 
-            // 价格按钮
+            // 价格卡片选择
             HStack(spacing: 12) {
-                // 月度
-                SubscribePriceButton(
+                PriceCard(
                     title: "月度会员",
-                    price: monthlyProduct?.displayPrice ?? "¥2",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
                     period: "/月",
                     tag: nil,
-                    isHighlighted: false,
-                    isLoading: isLoading
+                    isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
                 ) {
-                    if let product = monthlyProduct {
-                        onPurchase(product)
-                    }
+                    selectedProduct = subscriptionManager.monthlyProduct
                 }
-
-                // 年度（推荐）
-                SubscribePriceButton(
+                PriceCard(
                     title: "年度会员",
-                    price: yearlyProduct?.displayPrice ?? "¥12",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
                     period: "/年",
                     tag: "省66%",
-                    isHighlighted: true,
-                    isLoading: isLoading
+                    isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
+                            || selectedProduct == nil
                 ) {
-                    if let product = yearlyProduct {
-                        onPurchase(product)
-                    }
+                    selectedProduct = subscriptionManager.yearlyProduct
                 }
             }
 
-            // 恢复购买
-            Button(action: onRestore) {
-                Text("恢复购买")
-                    .font(.system(size: 13))
+            // 主购买按钮
+            Button(action: {
+                let target = selectedProduct ?? subscriptionManager.yearlyProduct
+                if let product = target {
+                    Task { await subscriptionManager.purchase(product: product) }
+                } else {
+                    onNeedLogin()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    if subscriptionManager.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.85)
+                    } else {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 15))
+                    }
+                    Text(subscriptionManager.isLoading ? "处理中…" : "马上成为尊贵的VIP")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .cornerRadius(13)
+                .shadow(color: Color(hex: "#007AFF").opacity(0.4), radius: 8, x: 0, y: 4)
+            }
+            .disabled(subscriptionManager.isLoading)
+            .buttonStyle(ScaleButtonStyle())
+
+            // 恢复购买（低调文字）
+            Button(action: {
+                Task { await subscriptionManager.restorePurchases() }
+            }) {
+                Text("已购买？点此恢复")
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
         }
@@ -272,35 +397,13 @@ struct SubscriptionCard: View {
     }
 }
 
-// MARK: - 权益行
-struct BenefitRow: View {
-    let icon: String
-    let text: String
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#007AFF"))
-                .frame(width: 24)
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundColor(.primary)
-            Spacer()
-            Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.green)
-        }
-    }
-}
-
-// MARK: - 订阅价格按钮
-struct SubscribePriceButton: View {
+// MARK: - 价格选择卡片（带选中态）
+struct PriceCard: View {
     let title: String
     let price: String
     let period: String
     let tag: String?
-    let isHighlighted: Bool
-    let isLoading: Bool
+    let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
@@ -308,14 +411,14 @@ struct SubscribePriceButton: View {
             VStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isHighlighted ? .white : .primary)
+                    .foregroundColor(isSelected ? .white : .primary)
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(price)
                         .font(.system(size: 22, weight: .bold))
                     Text(period)
                         .font(.system(size: 12))
                 }
-                .foregroundColor(isHighlighted ? .white : .primary)
+                .foregroundColor(isSelected ? .white : .primary)
                 if let tag = tag {
                     Text(tag)
                         .font(.system(size: 11, weight: .bold))
@@ -329,14 +432,49 @@ struct SubscribePriceButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
-                isHighlighted
-                    ? LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")], startPoint: .top, endPoint: .bottom)
-                    : LinearGradient(colors: [Color(.systemGray6), Color(.systemGray5)], startPoint: .top, endPoint: .bottom)
+                Group {
+                    if isSelected {
+                        LinearGradient(
+                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    } else {
+                        LinearGradient(
+                            colors: [Color(.systemGray6), Color(.systemGray5)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    }
+                }
             )
             .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color(hex: "#007AFF") : Color.clear, lineWidth: 2)
+            )
         }
-        .disabled(isLoading)
         .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+// MARK: - 权益行
+struct BenefitRow: View {
+    let icon: String
+    let iconColor: Color
+    let text: String
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 15))
+                .foregroundColor(iconColor)
+                .frame(width: 24)
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(.primary)
+            Spacer()
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.green)
+        }
     }
 }
 
@@ -406,7 +544,6 @@ struct MenuRow<Trailing: View>: View {
     }
 }
 
-// 无 trailing 的便利 init
 extension MenuRow where Trailing == EmptyView {
     init(icon: String, iconColor: Color, title: String, action: @escaping () -> Void) {
         self.icon = icon

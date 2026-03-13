@@ -21,6 +21,7 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - Published 状态
     @Published var isPremium: Bool = false
+    @Published var expiryDate: Date? = nil   // 当前会员有效期
     @Published var products: [Product] = []
     @Published var isLoading: Bool = false
     @Published var purchaseError: String?
@@ -63,16 +64,21 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - 检查当前订阅状态
     func checkSubscriptionStatus() async {
-        // 遍历当前有效的权益
+        var latestExpiry: Date? = nil
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if transaction.productID == Self.monthlyProductID ||
                transaction.productID == Self.yearlyProductID {
                 isPremium = true
-                return
+                if let expiry = transaction.expirationDate {
+                    if latestExpiry == nil || expiry > latestExpiry! {
+                        latestExpiry = expiry
+                    }
+                }
             }
         }
-        isPremium = false
+        expiryDate = latestExpiry
+        if latestExpiry == nil { isPremium = false }
     }
 
     // MARK: - 购买订阅
@@ -90,6 +96,7 @@ class SubscriptionManager: ObservableObject {
                     return
                 }
                 isPremium = true
+                expiryDate = transaction.expirationDate
                 await transaction.finish()
 
             case .userCancelled:
