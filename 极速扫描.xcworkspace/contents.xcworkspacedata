@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:极速扫描.xcodeproj">
+      location = "group:SpeedScan.xcodeproj">
    </FileRef>
 </Workspace>
