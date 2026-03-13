@@ -390,12 +390,16 @@ struct BottomActionBar: View {
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
                 .background(
-                    isExporting
-                        ? Color.gray
-                        : LinearGradient(
-                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
-                            startPoint: .leading, endPoint: .trailing
-                          )
+                    Group {
+                        if isExporting {
+                            Color.gray
+                        } else {
+                            LinearGradient(
+                                colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        }
+                    }
                 )
                 .cornerRadius(12)
             }

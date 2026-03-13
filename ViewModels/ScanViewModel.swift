@@ -155,7 +155,10 @@ class ScanViewModel: ObservableObject {
 }
 
 // MARK: - OCR 结果模型
-struct OCRResult: Identifiable {
+struct OCRResult: Identifiable, Equatable {
+    static func == (lhs: OCRResult, rhs: OCRResult) -> Bool {
+        lhs.id == rhs.id
+    }
     let id = UUID()
     let originalImage: UIImage
     let recognizedText: String
