@@ -1,6 +1,6 @@
 //
 // ContentView.swift
-// 主入口：登录判断 + 3 Tab 导航
+// 主入口：支持访客模式，登录后切换到完整功能
 //
 
 import SwiftUI
@@ -10,7 +10,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if appState.isLoggedIn {
+            if appState.isLoggedIn || appState.isGuestMode {
                 MainTabView()
             } else {
                 LoginView()

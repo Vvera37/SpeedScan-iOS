@@ -24,19 +24,53 @@ struct SpeedScanApp: App {
     }
 }
 
-// MARK: - 应用全局状态（登录 & Session）
+// MARK: - 应用全局状态（登录 & Session & 访客模式）
 @MainActor
 class AppState: ObservableObject {
     @Published var isLoggedIn: Bool = false
+    @Published var isGuestMode: Bool = false   // 已跳过登录，以访客身份使用
     @Published var userPhone: String = ""
+    @Published var guestScanCount: Int = 0     // 访客扫描次数
+    @Published var showLoginRequired: Bool = false  // 触发登录弹窗
+    @Published var loginRequiredReason: String = "" // 弹窗原因文案
+
+    static let guestScanLimit = 10             // 访客免登录最多扫描次数
 
     // Keychain 键名
     private let tokenKey     = "auth_token"
     private let phoneKey     = "user_phone"
     private let expiryKey    = "session_expiry"
+    private let scanCountKey = "guest_scan_count"
 
     init() {
+        guestScanCount = UserDefaults.standard.integer(forKey: scanCountKey)
         restoreSession()
+    }
+
+    // MARK: - 进入访客模式
+    func enterGuestMode() {
+        isGuestMode = true
+    }
+
+    // MARK: - 记录访客扫描（返回是否允许继续）
+    func recordGuestScan() -> Bool {
+        guard !isLoggedIn else { return true }
+        guestScanCount += 1
+        UserDefaults.standard.set(guestScanCount, forKey: scanCountKey)
+        if guestScanCount > AppState.guestScanLimit {
+            loginRequiredReason = "为确保您的数据安全，请登录后再尝试"
+            showLoginRequired = true
+            return false
+        }
+        return true
+    }
+
+    // MARK: - 检查是否需要登录才能导出
+    func requireLoginForExport() -> Bool {
+        guard !isLoggedIn else { return true }
+        loginRequiredReason = "导出文件需要登录，登录后数据永久保存"
+        showLoginRequired = true
+        return false
     }
 
     // MARK: - 恢复登录态

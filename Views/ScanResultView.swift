@@ -23,6 +23,7 @@ struct ScanResultView: View {
     @State private var exportSuccess = false
     @State private var isExporting = false
     @State private var exportedFileURL: URL?
+    @State private var showLoginSheet = false
 
     var body: some View {
         NavigationStack {
@@ -102,6 +103,10 @@ struct ScanResultView: View {
                     isExporting: isExporting
                 )
             }
+            .sheet(isPresented: $showLoginSheet) {
+                LoginView()
+                    .environmentObject(appState)
+            }
             .navigationTitle("识别结果")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -121,6 +126,11 @@ struct ScanResultView: View {
 
     // MARK: - 导出 Word
     private func exportWord() {
+        // 未登录不允许导出
+        guard appState.requireLoginForExport() else {
+            showLoginSheet = true
+            return
+        }
         guard !isExporting else { return }
         isExporting = true
 

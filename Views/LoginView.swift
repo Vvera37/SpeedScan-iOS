@@ -26,6 +26,8 @@ struct LoginView: View {
                 endPoint: .bottom
             )
             .ignoresSafeArea()
+            // 点击空白区域收起键盘
+            .onTapGesture { hideKeyboard() }
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -152,6 +154,18 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 28)
 
+                    // MARK: 跳过登录入口
+                    Button(action: {
+                        hideKeyboard()
+                        appState.enterGuestMode()
+                    }) {
+                        Text("跳过，先体验扫描功能")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .underline()
+                    }
+                    .padding(.top, 16)
+
                     // MARK: 隐私条款
                     VStack(spacing: 8) {
                         Text("登录即表示同意")
@@ -166,7 +180,7 @@ struct LoginView: View {
                         .font(.system(size: 12))
                         .foregroundColor(Color(hex: "#007AFF"))
                     }
-                    .padding(.top, 32)
+                    .padding(.top, 12)
                     .padding(.bottom, 40)
                 }
             }
@@ -280,6 +294,14 @@ struct LoginView: View {
             }
         }
     }
+}
+
+// MARK: - 收起键盘工具函数
+func hideKeyboard() {
+    UIApplication.shared.sendAction(
+        #selector(UIResponder.resignFirstResponder),
+        to: nil, from: nil, for: nil
+    )
 }
 
 // MARK: - Preview

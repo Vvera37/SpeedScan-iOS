@@ -9,10 +9,12 @@ import SwiftData
 
 struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
+    @EnvironmentObject var appState: AppState
     @State private var showImagePicker = false
     @State private var sourceType: UIImagePickerController.SourceType = .camera
     @State private var showDocumentPicker = false
     @State private var showResult = false
+    @State private var showLoginSheet = false
 
     // 最近记录（SwiftData）
     @Query(sort: \ScanRecord.createdAt, order: .reverse) private var recentRecords: [ScanRecord]
@@ -117,14 +119,31 @@ struct ScanView: View {
                     ScanResultView(result: result, viewModel: viewModel)
                 }
             }
+            // 登录引导弹窗
+            .sheet(isPresented: $showLoginSheet) {
+                LoginView()
+                    .environmentObject(appState)
+            }
             .onChange(of: viewModel.selectedImage) { _, newImage in
                 if newImage != nil {
-                    viewModel.performOCR()
+                    // 访客次数检查
+                    if appState.recordGuestScan() {
+                        viewModel.performOCR()
+                    } else {
+                        viewModel.selectedImage = nil
+                        showLoginSheet = true
+                    }
                 }
             }
             .onChange(of: viewModel.scanResult) { _, result in
                 if result != nil {
                     showResult = true
+                }
+            }
+            .onChange(of: appState.showLoginRequired) { _, show in
+                if show {
+                    showLoginSheet = true
+                    appState.showLoginRequired = false
                 }
             }
             .alert(item: $viewModel.alertItem) { alert in
