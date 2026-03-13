@@ -1,0 +1,364 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8F146E834982491FB2B8E84C /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 912891D8B7BA4039BBEDC6C3 /* ImagePicker.swift */; };
+		D53C0B6D2DDC45948955B7F6 /* ScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C9033CD1D604B9B961FB555 /* ScanRecord.swift */; };
+		1FE88FBB0067421B960F9155 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED560DF09AE45A2A77D52B6 /* AuthService.swift */; };
+		7444C504467B426EB528AD87 /* DocxExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0970A1FBDDE4F8AB8FB03EB /* DocxExporter.swift */; };
+		1E37BED09057467C9D9625D0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9591EED1912D4BA6AC476F1E /* KeychainService.swift */; };
+		E7DD526177AC472480E4D444 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232A48A0C9B04FD59EA75572 /* SubscriptionManager.swift */; };
+		0202FA7FB1B7400A93F10632 /* SpeedScanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F617A42CF0634D839DB416AE /* SpeedScanApp.swift */; };
+		F4555D4E4BA64BCBB08F0DB6 /* ScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCF62077F5D42F693A468EF /* ScanViewModel.swift */; };
+		8DE3A12980B648978E5DFDF0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E2F557157C48DA87BECA6D /* ContentView.swift */; };
+		CD4687467B434662B8C25568 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D94A36F3B041D4B793D67E /* HistoryView.swift */; };
+		B81651EF3D9A42BEB3D987F2 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0414B9945FCA4CCCA732B98C /* LoginView.swift */; };
+		48C8236A0D6B4543927015AD /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2BDC5F0B8741CF891E5D71 /* ProfileView.swift */; };
+		8A61122D2E624C74A401B2F4 /* ScanResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1210F2F2ED914A649CC8EA5B /* ScanResultView.swift */; };
+		9E4F43D5CDE0497C97B2809A /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B6B5D554A4598A94A1C4E /* ScanView.swift */; };
+		FCFF7120B8B04227B71CE11A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FD288C00CB47298BC84F7A /* SettingsView.swift */; };
+		6A8BBF270015498CAF382017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FA517011E20A4D8691544E0F /* Assets.xcassets */; };
+		A09A233C9213470D8D7B0372 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 922E2897CCD1420E8464C94F /* Info.plist */; };
+		97FE7F5B0D1E4D20BB70298E /* ScanJi.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 89D54F3A02A2462A8D0E9A53 /* ScanJi.storekit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		912891D8B7BA4039BBEDC6C3 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		7C9033CD1D604B9B961FB555 /* ScanRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanRecord.swift; sourceTree = "<group>"; };
+		827481E117334D6CAD6A386A /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
+		0ED560DF09AE45A2A77D52B6 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		E0970A1FBDDE4F8AB8FB03EB /* DocxExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocxExporter.swift; sourceTree = "<group>"; };
+		9591EED1912D4BA6AC476F1E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		232A48A0C9B04FD59EA75572 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		F617A42CF0634D839DB416AE /* SpeedScanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedScanApp.swift; sourceTree = "<group>"; };
+		ABCF62077F5D42F693A468EF /* ScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanViewModel.swift; sourceTree = "<group>"; };
+		C2E2F557157C48DA87BECA6D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		74D94A36F3B041D4B793D67E /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		0414B9945FCA4CCCA732B98C /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		9B2BDC5F0B8741CF891E5D71 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		1210F2F2ED914A649CC8EA5B /* ScanResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanResultView.swift; sourceTree = "<group>"; };
+		5D0B6B5D554A4598A94A1C4E /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
+		F5FD288C00CB47298BC84F7A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FA517011E20A4D8691544E0F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		922E2897CCD1420E8464C94F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		89D54F3A02A2462A8D0E9A53 /* ScanJi.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = ScanJi.storekit; sourceTree = "<group>"; };
+		8DA5C6AE9F67465AAFB20520 /* 极速扫描.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = 极速扫描.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		96BF7C6B1BC84114BE846646 = {
+			isa = PBXGroup;
+			children = (
+				4B9C520DAD984964A6A1A262 /* Components */,
+				42EE3D7D1DE74188A3FBA2B7 /* Models */,
+				874F544AB30845A5A627E98F /* Resources */,
+				7E054EF97146418C91DE99FB /* Services */,
+				9662F58827244A65BC80D39E /* ViewModels */,
+				0E51330F61DB4AFDA3495E55 /* Views */,
+				827481E117334D6CAD6A386A /* Package.swift */,
+				F617A42CF0634D839DB416AE /* SpeedScanApp.swift */,
+				922E2897CCD1420E8464C94F /* Info.plist */,
+				89D54F3A02A2462A8D0E9A53 /* ScanJi.storekit */,
+				6E8BF517721940328223A562 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+
+		6E8BF517721940328223A562 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8DA5C6AE9F67465AAFB20520 /* 极速扫描.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+
+		4B9C520DAD984964A6A1A262 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				912891D8B7BA4039BBEDC6C3 /* ImagePicker.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+
+		42EE3D7D1DE74188A3FBA2B7 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7C9033CD1D604B9B961FB555 /* ScanRecord.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+
+		874F544AB30845A5A627E98F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				FA517011E20A4D8691544E0F /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+
+		7E054EF97146418C91DE99FB /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				0ED560DF09AE45A2A77D52B6 /* AuthService.swift */,
+				E0970A1FBDDE4F8AB8FB03EB /* DocxExporter.swift */,
+				9591EED1912D4BA6AC476F1E /* KeychainService.swift */,
+				232A48A0C9B04FD59EA75572 /* SubscriptionManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+
+		9662F58827244A65BC80D39E /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				ABCF62077F5D42F693A468EF /* ScanViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+
+		0E51330F61DB4AFDA3495E55 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				C2E2F557157C48DA87BECA6D /* ContentView.swift */,
+				74D94A36F3B041D4B793D67E /* HistoryView.swift */,
+				0414B9945FCA4CCCA732B98C /* LoginView.swift */,
+				9B2BDC5F0B8741CF891E5D71 /* ProfileView.swift */,
+				1210F2F2ED914A649CC8EA5B /* ScanResultView.swift */,
+				5D0B6B5D554A4598A94A1C4E /* ScanView.swift */,
+				F5FD288C00CB47298BC84F7A /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D47114EF85E149C2B30D3CB8 /* 极速扫描 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD2B3DF8F90C43A09BA82522 /* Build configuration list for PBXNativeTarget "极速扫描" */;
+			buildPhases = (
+				470FFC4313A04057B392B425 /* Sources */,
+				DBEF9D8DA7A14EE895C1B805 /* Resources */,
+				F51D4F563A2544B4BC555456 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = 极速扫描;
+			packageProductDependencies = (
+			);
+			productName = 极速扫描;
+			productReference = 8DA5C6AE9F67465AAFB20520 /* 极速扫描.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		14E15F7824C448259C0279D2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					D47114EF85E149C2B30D3CB8 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 62C7E16FA0BC4C5BA8ECC0B5 /* Build configuration list for PBXProject "极速扫描" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh-Hans;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+				Base,
+			);
+			mainGroup = 96BF7C6B1BC84114BE846646;
+			productRefGroup = 6E8BF517721940328223A562 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D47114EF85E149C2B30D3CB8 /* 极速扫描 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		470FFC4313A04057B392B425 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F146E834982491FB2B8E84C /* ImagePicker.swift in Sources */,
+				D53C0B6D2DDC45948955B7F6 /* ScanRecord.swift in Sources */,
+				1FE88FBB0067421B960F9155 /* AuthService.swift in Sources */,
+				7444C504467B426EB528AD87 /* DocxExporter.swift in Sources */,
+				1E37BED09057467C9D9625D0 /* KeychainService.swift in Sources */,
+				E7DD526177AC472480E4D444 /* SubscriptionManager.swift in Sources */,
+				0202FA7FB1B7400A93F10632 /* SpeedScanApp.swift in Sources */,
+				F4555D4E4BA64BCBB08F0DB6 /* ScanViewModel.swift in Sources */,
+				8DE3A12980B648978E5DFDF0 /* ContentView.swift in Sources */,
+				CD4687467B434662B8C25568 /* HistoryView.swift in Sources */,
+				B81651EF3D9A42BEB3D987F2 /* LoginView.swift in Sources */,
+				48C8236A0D6B4543927015AD /* ProfileView.swift in Sources */,
+				8A61122D2E624C74A401B2F4 /* ScanResultView.swift in Sources */,
+				9E4F43D5CDE0497C97B2809A /* ScanView.swift in Sources */,
+				FCFF7120B8B04227B71CE11A /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DBEF9D8DA7A14EE895C1B805 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6A8BBF270015498CAF382017 /* Assets.xcassets in Resources */,
+				A09A233C9213470D8D7B0372 /* Info.plist in Resources */,
+				97FE7F5B0D1E4D20BB70298E /* ScanJi.storekit in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F51D4F563A2544B4BC555456 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A2A2424B71A246779BE82D4F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSET_CATALOG_COMPILER_OPTIMIZATION = space;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		77E47A38A57C4DCFB10C5F89 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		369A3809CC8240D6A420FF5B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASPECT_RATIO_CONSTRAINTS_SUPPORTED = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.saomiaoji.app";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Debug;
+		};
+		2A8C8060602E455784A08D44 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASPECT_RATIO_CONSTRAINTS_SUPPORTED = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.saomiaoji.app";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		62C7E16FA0BC4C5BA8ECC0B5 /* Build configuration list for PBXProject "极速扫描" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2A2424B71A246779BE82D4F /* Debug */,
+				77E47A38A57C4DCFB10C5F89 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AD2B3DF8F90C43A09BA82522 /* Build configuration list for PBXNativeTarget "极速扫描" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				369A3809CC8240D6A420FF5B /* Debug */,
+				2A8C8060602E455784A08D44 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 14E15F7824C448259C0279D2 /* Project object */;
+}

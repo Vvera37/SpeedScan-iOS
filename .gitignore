@@ -1,7 +1,7 @@
 # Xcode
-*.xcodeproj
-*.xcworkspace
-*.xcuserdata
+# *.xcodeproj  # 不忽略，需要提交给团队
+*.xcodeproj/xcuserdata
+*.xcworkspace/xcuserdata
 *.xcuserstate
 
 # Build
