@@ -65,8 +65,11 @@ struct DocxExporter {
     // MARK: - ZIP 条目写入辅助
     private static func addEntry(archive: Archive, path: String, content: String) throws {
         guard let data = content.data(using: .utf8) else { return }
-        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count)) { position, size in
-            data[position..<position + size]
+        let dataCount = data.count
+        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(dataCount)) { (position: Int64, size: Int) -> Data in
+            let start = Int(position)
+            let end = start + size
+            return data[start..<end]
         }
     }
 
