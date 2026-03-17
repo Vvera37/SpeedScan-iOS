@@ -13,9 +13,8 @@ import Foundation
 
 struct AuthService {
 
-    // 后端地址（Sealos 部署）
-    // TODO: 域名绑定后换成 https://api.vmingstudio.com/saomiaoji
-    static let baseURL = "https://rnqvgzqtcjej.sealosbja.site"
+    // 后端地址
+    static let baseURL = "https://api.vmingstudio.com"
 
     // MARK: - 发送验证码
     static func sendCode(phone: String) async throws {
