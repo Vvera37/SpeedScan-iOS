@@ -16,9 +16,29 @@ struct LoginView: View {
     @State private var countdownTimer: Timer?
     @State private var errorMessage: String = ""
     @State private var showError: Bool = false
+    @State private var agreedToTerms: Bool = false
+    @State private var isShowingAgreementToast: Bool = false
 
     var body: some View {
         ZStack {
+            // Toast 提示
+            if isShowingAgreementToast {
+                VStack {
+                    Spacer()
+                    Text("请勾选用户隐私协议")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(24)
+                        .padding(.bottom, 80)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+                .zIndex(999)
+                .animation(.easeInOut(duration: 0.25), value: isShowingAgreementToast)
+            }
+
             // 背景
             LinearGradient(
                 colors: [Color(hex: "#F2F2F7"), Color.white],
@@ -166,20 +186,40 @@ struct LoginView: View {
                     }
                     .padding(.top, 16)
 
-                    // MARK: 隐私条款
-                    VStack(spacing: 8) {
-                        Text("登录即表示同意")
+                    // MARK: 隐私条款（需手动勾选）
+                    Button(action: { agreedToTerms.toggle() }) {
+                        HStack(alignment: .top, spacing: 8) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
+                                    .frame(width: 18, height: 18)
+                                if agreedToTerms {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(Color(hex: "#007AFF"))
+                                        .frame(width: 18, height: 18)
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .padding(.top, 1)
+
+                            Group {
+                                Text("我已阅读并同意 ")
+                                    .foregroundColor(.secondary)
+                                + Text("《用户协议》")
+                                    .foregroundColor(Color(hex: "#007AFF"))
+                                + Text(" 和 ")
+                                    .foregroundColor(.secondary)
+                                + Text("《隐私政策》")
+                                    .foregroundColor(Color(hex: "#007AFF"))
+                            }
                             .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        HStack(spacing: 4) {
-                            Link("《用户协议》", destination: URL(string: "https://saomiaoji.com/terms")!)
-                            Text("和")
-                                .foregroundColor(.secondary)
-                            Link("《隐私政策》", destination: URL(string: "https://saomiaoji.com/privacy")!)
+                            .multilineTextAlignment(.leading)
+                            .onTapGesture { } // 防止文字点击冒泡到按钮
                         }
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "#007AFF"))
                     }
+                    .buttonStyle(.plain)
                     .padding(.top, 12)
                     .padding(.bottom, 40)
                 }
@@ -201,10 +241,24 @@ struct LoginView: View {
 
     // MARK: - 主操作（发送码 or 登录）
     private func primaryAction() async {
+        guard agreedToTerms else {
+            await MainActor.run { triggerAgreementToast(for: 2.5) }
+            return
+        }
         if showCodeInput {
             await performLogin()
         } else {
             await sendCode()
+        }
+    }
+
+    // MARK: - Toast 显隐控制
+    @MainActor
+    private func triggerAgreementToast(for duration: TimeInterval) {
+        withAnimation { isShowingAgreementToast = true }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            await MainActor.run { withAnimation { isShowingAgreementToast = false } }
         }
     }
 

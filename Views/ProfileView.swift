@@ -11,6 +11,7 @@ struct ProfileView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var showLogoutConfirm = false
     @State private var showLoginSheet = false
+    @Environment(\.requestReview) private var requestReview
 
     var body: some View {
         NavigationStack {
@@ -53,9 +54,7 @@ struct ProfileView: View {
                         // MARK: 功能菜单
                         MenuSection(title: "关于应用") {
                             MenuRow(icon: "star.fill", iconColor: .yellow, title: "给我们好评") {
-                                if let url = URL(string: "itms-apps://itunes.apple.com/app/id0000000000?action=write-review") {
-                                    UIApplication.shared.open(url)
-                                }
+                                requestReview()
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "doc.text", iconColor: .blue, title: "隐私政策") {
@@ -316,7 +315,8 @@ struct SubscriptionCard: View {
             // 会员权益
             VStack(spacing: 10) {
                 BenefitRow(icon: "doc.text.fill", iconColor: Color(hex: "#007AFF"), text: "无水印导出 Word 文档")
-                BenefitRow(icon: "character.bubble.fill", iconColor: Color(hex: "#34C759"), text: "多语言翻译无限制")
+                // 多语言翻译功能暂时下线，一期不做
+                // BenefitRow(icon: "character.bubble.fill", iconColor: Color(hex: "#34C759"), text: "多语言翻译无限制")
                 BenefitRow(icon: "doc.richtext.fill", iconColor: Color(hex: "#FF9500"), text: "PDF 多页批量转换")
             }
 
@@ -357,7 +357,7 @@ struct SubscriptionCard: View {
                 HStack(spacing: 8) {
                     if subscriptionManager.isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .progressViewStyle(CircularProgressViewStyle(tint: .black.opacity(0.7)))
                             .scaleEffect(0.85)
                     } else {
                         Image(systemName: "crown.fill")
@@ -366,17 +366,17 @@ struct SubscriptionCard: View {
                     Text(subscriptionManager.isLoading ? "处理中…" : "马上成为尊贵的VIP")
                         .font(.system(size: 16, weight: .semibold))
                 }
-                .foregroundColor(.white)
+                .foregroundColor(.black.opacity(0.75))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                        colors: [Color(hex: "#FFD60A"), Color(hex: "#FF9500")],
                         startPoint: .leading, endPoint: .trailing
                     )
                 )
                 .cornerRadius(13)
-                .shadow(color: Color(hex: "#007AFF").opacity(0.4), radius: 8, x: 0, y: 4)
+                .shadow(color: Color(hex: "#FFD60A").opacity(0.5), radius: 8, x: 0, y: 4)
             }
             .disabled(subscriptionManager.isLoading)
             .buttonStyle(ScaleButtonStyle())
