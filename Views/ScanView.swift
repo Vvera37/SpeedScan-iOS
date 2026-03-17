@@ -23,7 +23,7 @@ struct ScanView: View {
         NavigationStack {
             ZStack {
                 // 背景色
-                Color(hex: "#F2F2F7").ignoresSafeArea()
+                Color.white.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -312,7 +312,7 @@ struct RecentRecordRow: View {
         .padding(16)
         .background(Color.white)
         .cornerRadius(14)
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }
 }
 

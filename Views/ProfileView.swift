@@ -16,7 +16,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "#F2F2F7").ignoresSafeArea()
+                Color.white.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -433,7 +433,7 @@ struct PriceCard: View {
                         )
                     } else {
                         LinearGradient(
-                            colors: [Color(.systemGray6), Color(.systemGray5)],
+                            colors: [Color.white, Color.white],
                             startPoint: .top, endPoint: .bottom
                         )
                     }
@@ -442,8 +442,12 @@ struct PriceCard: View {
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color(hex: "#007AFF") : Color.clear, lineWidth: 2)
+                    .stroke(
+                        isSelected ? Color(hex: "#007AFF") : Color.black.opacity(0.08),
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
+            .shadow(color: .black.opacity(isSelected ? 0 : 0.04), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(ScaleButtonStyle())
     }
@@ -487,7 +491,7 @@ struct MenuSection<Content: View>: View {
             }
             .background(Color.white)
             .cornerRadius(14)
-            .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 3)
+            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         }
     }
 }

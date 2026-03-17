@@ -40,14 +40,10 @@ struct LoginView: View {
             }
 
             // 背景
-            LinearGradient(
-                colors: [Color(hex: "#F2F2F7"), Color.white],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            // 点击空白区域收起键盘
-            .onTapGesture { hideKeyboard() }
+            Color.white
+                .ignoresSafeArea()
+                // 点击空白区域收起键盘
+                .onTapGesture { hideKeyboard() }
 
             ScrollView {
                 VStack(spacing: 0) {

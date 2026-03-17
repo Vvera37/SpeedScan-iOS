@@ -16,9 +16,10 @@ struct ScanResultView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showTranslation = false
-    @State private var translatedText: String = ""
-    @State private var isTranslating = false
+    // 多语言翻译相关 State（暂时下线，一期不做）
+    // @State private var showTranslation = false
+    // @State private var translatedText: String = ""
+    // @State private var isTranslating = false
     @State private var copySuccess = false
     @State private var exportSuccess = false
     @State private var isExporting = false
@@ -28,7 +29,7 @@ struct ScanResultView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                Color(hex: "#F2F2F7").ignoresSafeArea()
+                Color.white.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -68,15 +69,16 @@ struct ScanResultView: View {
                         .padding(.horizontal, 20)
 
                         // MARK: 翻译按钮（非中文时显示）
-                        if !result.isChinese {
-                            TranslateSection(
-                                originalText: result.recognizedText,
-                                isTranslating: $isTranslating,
-                                showTranslation: $showTranslation,
-                                translatedText: $translatedText
-                            )
-                            .padding(.horizontal, 20)
-                        }
+                        // TODO: 多语言翻译功能暂时下线，一期不做，后续版本接入
+                        // if !result.isChinese {
+                        //     TranslateSection(
+                        //         originalText: result.recognizedText,
+                        //         isTranslating: $isTranslating,
+                        //         showTranslation: $showTranslation,
+                        //         translatedText: $translatedText
+                        //     )
+                        //     .padding(.horizontal, 20)
+                        // }
 
                         // 非会员水印提示
                         if !subscriptionManager.isPremium {
@@ -345,7 +347,7 @@ struct WatermarkBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "info.circle")
                 .foregroundColor(.orange)
-            Text("扫描图文、多语言翻译、pdf转word就用 极速扫描app")
+            Text("本文件由【扫描鸡】App 免费生成，下载扫描鸡解锁全功能")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
         }
