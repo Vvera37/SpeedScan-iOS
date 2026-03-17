@@ -14,7 +14,7 @@ import Foundation
 struct AuthService {
 
     // 后端地址（Sealos 部署）
-    // 域名审核通过后换成 https://api.saomiaoji.com
+    // TODO: 域名绑定后换成 https://api.vmingstudio.com/saomiaoji
     static let baseURL = "https://rnqvgzqtcjej.sealosbja.site"
 
     // MARK: - 发送验证码
