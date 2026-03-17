@@ -283,7 +283,7 @@ struct PremiumStatusCard: View {
                     )
                 )
                 .cornerRadius(13)
-                .shadow(color: Color(hex: "#FF9500").opacity(0.4), radius: 8, x: 0, y: 4)
+                
             }
             .disabled(subscriptionManager.isLoading)
         }
@@ -394,7 +394,7 @@ struct SubscriptionCard: View {
                     )
                 )
                 .cornerRadius(13)
-                .shadow(color: Color(hex: "#FFD60A").opacity(0.5), radius: 8, x: 0, y: 4)
+                
             }
             .disabled(subscriptionManager.isLoading)
             .buttonStyle(ScaleButtonStyle())
@@ -419,55 +419,53 @@ struct PriceCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .foregroundColor(isSelected ? .white : .secondary)
+
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(price)
-                        .font(.system(size: 22, weight: .bold))
-                    Text(period)
-                        .font(.system(size: 12))
+                    Text(price == "--" ? "--" : price)
+                        .font(.system(size: isSelected ? 26 : 22, weight: .bold))
+                    if price != "--" {
+                        Text(period)
+                            .font(.system(size: 12))
+                    }
                 }
                 .foregroundColor(isSelected ? .white : .primary)
+
                 if let tag = tag {
                     Text(tag)
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.yellow)
-                        .foregroundColor(.black)
+                        .background(isSelected ? Color.white.opacity(0.25) : Color.yellow)
+                        .foregroundColor(isSelected ? .white : .black)
                         .cornerRadius(5)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, isSelected ? 22 : 16)
             .background(
-                Group {
-                    if isSelected {
-                        LinearGradient(
-                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    } else {
-                        LinearGradient(
-                            colors: [Color.white, Color.white],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    }
-                }
+                isSelected
+                    ? AnyView(LinearGradient(
+                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                        startPoint: .top, endPoint: .bottom
+                      ))
+                    : AnyView(Color.white)
             )
-            .cornerRadius(12)
+            .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(
                         isSelected ? Color(hex: "#007AFF") : Color.black.opacity(0.08),
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(color: .black.opacity(isSelected ? 0 : 0.04), radius: 4, x: 0, y: 2)
+            .scaleEffect(isSelected ? 1.04 : 0.97)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
-        .buttonStyle(ScaleButtonStyle())
+        .buttonStyle(.plain)
     }
 }
 
