@@ -13,8 +13,9 @@ import Foundation
 
 struct AuthService {
 
-    // ⚠️ 后端上线后替换此地址
-    static let baseURL = "https://api.saomiaoji.com"
+    // 后端地址（Sealos 部署）
+    // 域名审核通过后换成 https://api.saomiaoji.com
+    static let baseURL = "https://rnqvgzqtcjej.sealosbja.site"
 
     // MARK: - 发送验证码
     static func sendCode(phone: String) async throws {
