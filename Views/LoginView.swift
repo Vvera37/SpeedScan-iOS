@@ -24,6 +24,7 @@ struct LoginView: View {
     @State private var isShowingAgreementToast: Bool = false
 
     var body: some View {
+        NavigationStack {
         ZStack {
             // Toast 提示
             if isShowingAgreementToast {
@@ -174,21 +175,8 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 28)
 
-                    // MARK: 跳过 / 关闭
-                    if isModal {
-                        // sheet 弹出时：显示关闭 X
-                        HStack {
-                            Spacer()
-                            Button(action: { dismiss() }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(Color.secondary.opacity(0.4))
-                            }
-                        }
-                        .padding(.horizontal, 28)
-                        .padding(.top, 16)
-                    } else {
-                        // 独立页面：保留跳过入口
+                    // MARK: 跳过（非 modal 模式保留）
+                    if !isModal {
                         Button(action: {
                             hideKeyboard()
                             appState.enterGuestMode()
@@ -203,7 +191,7 @@ struct LoginView: View {
 
                     // MARK: 隐私条款（需手动勾选）
                     Button(action: { agreedToTerms.toggle() }) {
-                        HStack(alignment: .top, spacing: 8) {
+                        HStack(alignment: .center, spacing: 8) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 5)
                                     .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
@@ -217,7 +205,6 @@ struct LoginView: View {
                                         .foregroundColor(.white)
                                 }
                             }
-                            .padding(.top, 1)
 
                             Group {
                                 Text("我已阅读并同意 ")
@@ -246,6 +233,19 @@ struct LoginView: View {
             Text(errorMessage)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showCodeInput)
+        // 右上角关闭按钮（仅 sheet 模式）
+        .toolbar {
+            if isModal {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        } // NavigationStack
     }
 
     // MARK: - 验证手机号
