@@ -113,6 +113,29 @@ struct ScanView: View {
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: sourceType, selectedImage: $viewModel.selectedImage)
             }
+            // PDF 文件选择器
+            .fileImporter(
+                isPresented: $showDocumentPicker,
+                allowedContentTypes: [.pdf],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    // 访客次数检查
+                    guard appState.recordGuestScan() else {
+                        showLoginSheet = true
+                        return
+                    }
+                    // 获取沙盒访问权限（processPDF 内部异步，处理完后再释放）
+                    _ = url.startAccessingSecurityScopedResource()
+                    viewModel.processPDF(url: url, onComplete: {
+                        url.stopAccessingSecurityScopedResource()
+                    })
+                case .failure(let error):
+                    viewModel.showAlert(title: "文件选择失败", message: error.localizedDescription)
+                }
+            }
             // 扫描结果
             .sheet(isPresented: $showResult) {
                 if let result = viewModel.scanResult {

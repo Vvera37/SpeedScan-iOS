@@ -7,6 +7,7 @@ import SwiftUI
 import Vision
 import NaturalLanguage
 import SwiftData
+import PDFKit
 
 @MainActor
 class ScanViewModel: ObservableObject {
@@ -90,6 +91,80 @@ class ScanViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - PDF 处理（多页合并 OCR）
+    func processPDF(url: URL, onComplete: (() -> Void)? = nil) {
+        guard let pdf = PDFDocument(url: url) else {
+            showAlert(title: "打开失败", message: "无法读取该 PDF 文件，请确认文件完整")
+            return
+        }
+        isProcessing = true
+        scanResult = nil
+
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+
+            var allText: [String] = []
+            var totalConfidence: Double = 0
+            var observationCount = 0
+            var firstImage: UIImage?
+
+            for i in 0..<pdf.pageCount {
+                guard let page = pdf.page(at: i) else { continue }
+
+                // PDF 页 → UIImage
+                let pageRect = page.bounds(for: .mediaBox)
+                let scale: CGFloat = 2.0  // 2x 清晰度
+                let renderer = UIGraphicsImageRenderer(size: CGSize(
+                    width: pageRect.width * scale,
+                    height: pageRect.height * scale
+                ))
+                let pageImage = renderer.image { ctx in
+                    ctx.cgContext.scaleBy(x: scale, y: scale)
+                    UIColor.white.setFill()
+                    ctx.fill(CGRect(origin: .zero, size: pageRect.size))
+                    page.draw(with: .mediaBox, to: ctx.cgContext)
+                }
+                if firstImage == nil { firstImage = pageImage }
+
+                // OCR 识别
+                guard let cgImage = pageImage.cgImage else { continue }
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.usesLanguageCorrection = true
+                request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en", "ja", "ko"]
+
+                try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+
+                let observations = request.results ?? []
+                let lines = observations.compactMap { $0.topCandidates(1).first }
+                allText.append(lines.map(\.string).joined(separator: "\n"))
+                totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
+                observationCount += lines.count
+            }
+
+            let fullText = allText.joined(separator: "\n\n")
+            let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
+            let lang = await self.detectLanguageAsync(fullText)
+            let thumbnail = firstImage ?? UIImage()
+
+            await MainActor.run {
+                self.isProcessing = false
+                self.scanResult = OCRResult(
+                    originalImage: thumbnail,
+                    recognizedText: fullText.isEmpty ? "未能从 PDF 中提取到文字" : fullText,
+                    detectedLanguage: lang,
+                    confidence: avgConfidence,
+                    timestamp: Date()
+                )
+                onComplete?()
+            }
+        }
+    }
+
+    private func detectLanguageAsync(_ text: String) async -> String {
+        detectLanguage(text)
     }
 
     // MARK: - 图片压缩
