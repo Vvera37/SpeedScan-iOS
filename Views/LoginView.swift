@@ -8,6 +8,10 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject var appState: AppState
 
+    /// 作为 sheet 弹出时传 true：隐藏「跳过」，显示关闭 X
+    var isModal: Bool = false
+    @Environment(\.dismiss) private var dismiss
+
     @State private var phoneNumber: String = ""
     @State private var verificationCode: String = ""
     @State private var showCodeInput: Bool = false
@@ -170,17 +174,32 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 28)
 
-                    // MARK: 跳过登录入口
-                    Button(action: {
-                        hideKeyboard()
-                        appState.enterGuestMode()
-                    }) {
-                        Text("跳过，先体验扫描功能")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .underline()
+                    // MARK: 跳过 / 关闭
+                    if isModal {
+                        // sheet 弹出时：显示关闭 X
+                        HStack {
+                            Spacer()
+                            Button(action: { dismiss() }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(Color.secondary.opacity(0.4))
+                            }
+                        }
+                        .padding(.horizontal, 28)
+                        .padding(.top, 16)
+                    } else {
+                        // 独立页面：保留跳过入口
+                        Button(action: {
+                            hideKeyboard()
+                            appState.enterGuestMode()
+                        }) {
+                            Text("跳过，先体验扫描功能")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .underline()
+                        }
+                        .padding(.top, 16)
                     }
-                    .padding(.top, 16)
 
                     // MARK: 隐私条款（需手动勾选）
                     Button(action: { agreedToTerms.toggle() }) {

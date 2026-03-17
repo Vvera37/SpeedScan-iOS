@@ -52,16 +52,17 @@ struct HistoryView: View {
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
                 // 隐私说明栏
-                HStack(spacing: 8) {
+                VStack(spacing: 4) {
                     Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 13))
+                        .font(.system(size: 14))
                         .foregroundColor(Color(hex: "#34C759"))
                     Text("所有文档仅存储在您的手机本地，不会上传云端，只有您本人可以查看")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(.ultraThinMaterial)
             }

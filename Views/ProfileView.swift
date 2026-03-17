@@ -95,7 +95,7 @@ struct ProfileView: View {
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showLoginSheet) {
-                LoginView().environmentObject(appState)
+                LoginView(isModal: true).environmentObject(appState)
             }
             .confirmationDialog("确认退出登录？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("退出登录", role: .destructive) { appState.logout() }
@@ -226,7 +226,7 @@ struct PremiumStatusCard: View {
             HStack(spacing: 12) {
                 PriceCard(
                     title: "月度会员",
-                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
                     period: "/月",
                     tag: nil,
                     isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
@@ -235,13 +235,22 @@ struct PremiumStatusCard: View {
                 }
                 PriceCard(
                     title: "年度会员",
-                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
                     period: "/年",
                     tag: "省66%",
                     isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
-                            || selectedProduct == nil
                 ) {
                     selectedProduct = subscriptionManager.yearlyProduct
+                }
+            }
+            .onAppear {
+                if selectedProduct == nil {
+                    selectedProduct = subscriptionManager.yearlyProduct
+                }
+            }
+            .onChange(of: subscriptionManager.yearlyProduct) { _, product in
+                if selectedProduct == nil, let product {
+                    selectedProduct = product
                 }
             }
 
@@ -326,7 +335,7 @@ struct SubscriptionCard: View {
             HStack(spacing: 12) {
                 PriceCard(
                     title: "月度会员",
-                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
                     period: "/月",
                     tag: nil,
                     isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
@@ -335,13 +344,22 @@ struct SubscriptionCard: View {
                 }
                 PriceCard(
                     title: "年度会员",
-                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
                     period: "/年",
                     tag: "省66%",
                     isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
-                            || selectedProduct == nil
                 ) {
                     selectedProduct = subscriptionManager.yearlyProduct
+                }
+            }
+            .onAppear {
+                if selectedProduct == nil {
+                    selectedProduct = subscriptionManager.yearlyProduct
+                }
+            }
+            .onChange(of: subscriptionManager.yearlyProduct) { _, product in
+                if selectedProduct == nil, let product {
+                    selectedProduct = product
                 }
             }
 
