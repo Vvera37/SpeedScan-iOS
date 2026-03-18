@@ -318,7 +318,7 @@ struct SubscriptionCard: View {
                 Image(systemName: "crown.fill")
                     .foregroundColor(.yellow)
                     .font(.system(size: 20))
-                Text("解锁扫描鸡专业版")
+                Text("扫描鸡专业版")
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
             }
@@ -427,7 +427,7 @@ struct PriceCard: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(price == "--" ? "--" : price)
-                        .font(.system(size: isSelected ? 26 : 22, weight: .bold))
+                        .font(.system(size: 24, weight: .bold))
                     if price != "--" {
                         Text(period)
                             .font(.system(size: 12))
@@ -446,7 +446,7 @@ struct PriceCard: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, isSelected ? 22 : 16)
+            .padding(.vertical, 18)
             .background(isSelected ? selectedBgColor : unselectedBgColor)
             .cornerRadius(14)
             .overlay(
