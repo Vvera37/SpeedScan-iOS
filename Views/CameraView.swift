@@ -9,7 +9,7 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
-// MARK: - Color Hex 扩展（fileprivate，防止与 ScanView.swift 冲突）
+// MARK: - Color 扩展（fileprivate，防止与 ScanView.swift 冲突）
 fileprivate extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -28,12 +28,9 @@ fileprivate extension Color {
         }
         self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, opacity: Double(a)/255)
     }
-}
 
-// MARK: - 颜色常量
-fileprivate extension Color {
-    static let themeGreen = Color(hex: "#34C759")
-    static let capsuleBg  = Color(white: 0.22)
+    static let themeGreen  = Color(hex: "#34C759")
+    static let capsuleBg   = Color(white: 0.22)
     static let tabInactive = Color(white: 0.5)
 }
 
