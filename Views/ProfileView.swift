@@ -184,7 +184,14 @@ struct UserInfoCard: View {
 // MARK: - 已开通会员卡（可续费）
 struct PremiumStatusCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
-    @State private var selectedProduct: Product?
+    @State private var selectedPlan: Plan = .monthly
+
+    // 根据枚举取对应 Product
+    private var selectedProduct: Product? {
+        selectedPlan == .monthly
+            ? subscriptionManager.monthlyProduct
+            : subscriptionManager.yearlyProduct
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -229,35 +236,24 @@ struct PremiumStatusCard: View {
                     price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
                     period: "/月",
                     tag: nil,
-                    isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
+                    isSelected: selectedPlan == .monthly
                 ) {
-                    selectedProduct = subscriptionManager.monthlyProduct
+                    selectedPlan = .monthly
                 }
                 PriceCard(
                     title: "年度会员",
                     price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
                     period: "/年",
                     tag: "省66%",
-                    isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
+                    isSelected: selectedPlan == .yearly
                 ) {
-                    selectedProduct = subscriptionManager.yearlyProduct
-                }
-            }
-            .onAppear {
-                if selectedProduct == nil {
-                    selectedProduct = subscriptionManager.yearlyProduct
-                }
-            }
-            .onChange(of: subscriptionManager.yearlyProduct) { _, product in
-                if selectedProduct == nil, let product {
-                    selectedProduct = product
+                    selectedPlan = .yearly
                 }
             }
 
             // 购买按钮
             Button(action: {
-                let target = selectedProduct ?? subscriptionManager.yearlyProduct
-                if let product = target {
+                if let product = selectedProduct {
                     Task { await subscriptionManager.purchase(product: product) }
                 }
             }) {
@@ -306,8 +302,14 @@ struct PremiumStatusCard: View {
 // MARK: - 未开通订阅购买卡片
 struct SubscriptionCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
-    @State private var selectedProduct: Product?
+    @State private var selectedPlan: Plan = .monthly
     let onNeedLogin: () -> Void
+
+    private var selectedProduct: Product? {
+        selectedPlan == .monthly
+            ? subscriptionManager.monthlyProduct
+            : subscriptionManager.yearlyProduct
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -338,35 +340,24 @@ struct SubscriptionCard: View {
                     price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
                     period: "/月",
                     tag: nil,
-                    isSelected: selectedProduct?.id == SubscriptionManager.monthlyProductID
+                    isSelected: selectedPlan == .monthly
                 ) {
-                    selectedProduct = subscriptionManager.monthlyProduct
+                    selectedPlan = .monthly
                 }
                 PriceCard(
                     title: "年度会员",
                     price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
                     period: "/年",
                     tag: "省66%",
-                    isSelected: selectedProduct?.id == SubscriptionManager.yearlyProductID
+                    isSelected: selectedPlan == .yearly
                 ) {
-                    selectedProduct = subscriptionManager.yearlyProduct
-                }
-            }
-            .onAppear {
-                if selectedProduct == nil {
-                    selectedProduct = subscriptionManager.yearlyProduct
-                }
-            }
-            .onChange(of: subscriptionManager.yearlyProduct) { _, product in
-                if selectedProduct == nil, let product {
-                    selectedProduct = product
+                    selectedPlan = .yearly
                 }
             }
 
             // 主购买按钮
             Button(action: {
-                let target = selectedProduct ?? subscriptionManager.yearlyProduct
-                if let product = target {
+                if let product = selectedProduct {
                     Task { await subscriptionManager.purchase(product: product) }
                 } else {
                     onNeedLogin()
@@ -408,6 +399,11 @@ struct SubscriptionCard: View {
     }
 }
 
+// MARK: - 订阅套餐枚举
+enum Plan {
+    case monthly, yearly
+}
+
 // MARK: - 价格选择卡片（带选中态）
 struct PriceCard: View {
     let title: String
@@ -417,12 +413,17 @@ struct PriceCard: View {
     let isSelected: Bool
     let action: () -> Void
 
+    // 选中：金色/橙色边框 + 背景略加深；未选中：灰色背景无边框
+    private var selectedBorderColor: Color { Color(hex: "#FFB800") }
+    private var selectedBgColor: Color { Color(hex: "#FFF8E7") }   // 暖黄底，略深于白
+    private var unselectedBgColor: Color { Color(hex: "#F5F5F5") } // 浅灰，无边框
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .secondary)
+                    .foregroundColor(isSelected ? Color(hex: "#FF8C00") : .secondary)
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(price == "--" ? "--" : price)
@@ -432,34 +433,27 @@ struct PriceCard: View {
                             .font(.system(size: 12))
                     }
                 }
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .primary)
 
                 if let tag = tag {
                     Text(tag)
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(isSelected ? Color.white.opacity(0.25) : Color.yellow)
-                        .foregroundColor(isSelected ? .white : .black)
+                        .background(isSelected ? Color(hex: "#FFB800").opacity(0.2) : Color.yellow)
+                        .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .black)
                         .cornerRadius(5)
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, isSelected ? 22 : 16)
-            .background(
-                isSelected
-                    ? AnyView(LinearGradient(
-                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
-                        startPoint: .top, endPoint: .bottom
-                      ))
-                    : AnyView(Color.white)
-            )
+            .background(isSelected ? selectedBgColor : unselectedBgColor)
             .cornerRadius(14)
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(
-                        isSelected ? Color(hex: "#007AFF") : Color.black.opacity(0.08),
-                        lineWidth: isSelected ? 2 : 1
+                        isSelected ? selectedBorderColor : Color.clear,
+                        lineWidth: 2
                     )
             )
             .scaleEffect(isSelected ? 1.04 : 0.97)
