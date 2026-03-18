@@ -11,6 +11,7 @@ struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
     @EnvironmentObject var appState: AppState
     @State private var showImagePicker = false
+    @State private var showCameraView = false
     @State private var sourceType: UIImagePickerController.SourceType = .camera
     @State private var showDocumentPicker = false
     @State private var showResult = false
@@ -56,8 +57,7 @@ struct ScanView: View {
                                     subtitle: "实时拍摄识别",
                                     gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]
                                 ) {
-                                    sourceType = .camera
-                                    showImagePicker = true
+                                    showCameraView = true
                                 }
 
                                 ScanActionCard(
@@ -112,6 +112,10 @@ struct ScanView: View {
             // 图片/相册选择器（全屏，符合 HIG 二级页面规范）
             .fullScreenCover(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: sourceType, selectedImage: $viewModel.selectedImage)
+            }
+            // 自定义相机入口（全屏，替代 ImagePicker .camera）
+            .fullScreenCover(isPresented: $showCameraView) {
+                CameraView(capturedImage: $viewModel.selectedImage, onDismiss: { showCameraView = false })
             }
             // PDF 文件选择器
             .fileImporter(
