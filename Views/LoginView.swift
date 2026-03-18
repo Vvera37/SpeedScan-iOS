@@ -190,38 +190,38 @@ struct LoginView: View {
                     }
 
                     // MARK: 隐私条款（需手动勾选）
-                    Button(action: { agreedToTerms.toggle() }) {
-                        HStack(alignment: .center, spacing: 8) {
-                            ZStack {
+                    // 整行可点击（checkbox + 文字全部触发勾选）
+                    HStack(alignment: .center, spacing: 8) {
+                        // Checkbox
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
+                                .frame(width: 22, height: 22)
+                            if agreedToTerms {
                                 RoundedRectangle(cornerRadius: 5)
-                                    .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
-                                    .frame(width: 18, height: 18)
-                                if agreedToTerms {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .fill(Color(hex: "#007AFF"))
-                                        .frame(width: 18, height: 18)
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(.white)
-                                }
+                                    .fill(Color(hex: "#007AFF"))
+                                    .frame(width: 22, height: 22)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
                             }
-
-                            Group {
-                                Text("我已阅读并同意 ")
-                                    .foregroundColor(.secondary)
-                                + Text("《用户协议》")
-                                    .foregroundColor(Color(hex: "#007AFF"))
-                                + Text(" 和 ")
-                                    .foregroundColor(.secondary)
-                                + Text("《隐私政策》")
-                                    .foregroundColor(Color(hex: "#007AFF"))
-                            }
-                            .font(.system(size: 12))
-                            .multilineTextAlignment(.leading)
-                            .onTapGesture { } // 防止文字点击冒泡到按钮
                         }
+
+                        Group {
+                            Text("我已阅读并同意 ")
+                                .foregroundColor(.secondary)
+                            + Text("《用户协议》")
+                                .foregroundColor(Color(hex: "#007AFF"))
+                            + Text(" 和 ")
+                                .foregroundColor(.secondary)
+                            + Text("《隐私政策》")
+                                .foregroundColor(Color(hex: "#007AFF"))
+                        }
+                        .font(.system(size: 12))
+                        .multilineTextAlignment(.leading)
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle()) // 整行都是可点击区域
+                    .onTapGesture { agreedToTerms.toggle() }
                     .padding(.top, 12)
                     .padding(.bottom, 40)
                 }

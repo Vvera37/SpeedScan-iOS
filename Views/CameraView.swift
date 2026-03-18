@@ -583,6 +583,7 @@ struct CameraView: View {
             }
             .padding(.top, 20)
             .padding(.bottom, 16)
+            .zIndex(10) // 确保快门在最顶层，不被取景区遮挡
 
             // 模式 Tab 栏
             modeTabBar
@@ -591,6 +592,7 @@ struct CameraView: View {
             auxIconsRow
         }
         .background(Color.black)
+        .zIndex(10)
     }
 
     // MARK: 模式 Tab 栏
