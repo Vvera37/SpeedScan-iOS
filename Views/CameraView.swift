@@ -473,8 +473,15 @@ struct CameraView: View {
 
             Spacer()
 
-            // 更多（功能待实现，保留占位）
-            Color.clear.frame(width: 44, height: 44)
+            // 相册入口（右上角）
+            Button {
+                showAlbumPicker = true
+            } label: {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 22))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -615,30 +622,17 @@ struct CameraView: View {
         .frame(height: 44)
     }
 
-    // MARK: 辅助图标区
+    // MARK: 辅助图标区（底部，相册已移至右上角工具栏）
     @ViewBuilder
     private var auxIconsRow: some View {
-        HStack {
-            // 相册入口
-            Button {
-                showAlbumPicker = true
-            } label: {
-                Image(systemName: "square.grid.3x3")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
+        Color.clear
+            .frame(height: 20)
+            .sheet(isPresented: $showAlbumPicker) {
+                ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
+                    .onDisappear {
+                        if capturedImage != nil { onDismiss() }
+                    }
             }
-            Spacer()
-            // 自动裁剪、智能增强功能待实现，暂时隐藏
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 10)
-        .sheet(isPresented: $showAlbumPicker) {
-            ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
-                .onDisappear {
-                    if capturedImage != nil { onDismiss() }
-                }
-        }
     }
 }
 
