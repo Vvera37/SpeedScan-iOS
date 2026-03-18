@@ -7,8 +7,9 @@ import Foundation
 
 struct AuthService {
 
-    // 后端地址
-    static let baseURL = "https://api.vmingstudio.com"
+    // 后端地址（新加坡节点，证书正常）
+    // TODO: 域名备案完成后改回 https://api.vmingstudio.com
+    static let baseURL = "https://vsrvioxdwtde.cloud.sealos.io"
 
     // MARK: - 发送验证码
     static func sendCode(phone: String) async throws {
