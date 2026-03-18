@@ -450,14 +450,13 @@ struct RoundedCorner: Shape {
 }
 
 struct AnyShape: Shape {
-    private let _pathClosure: (CGRect) -> Path
+    private let _pathClosure: @Sendable (CGRect) -> Path
 
-    init<S: Shape>(_ shape: S) {
-        let s = shape
-        _pathClosure = { s.path(in: $0) }
+    init<S: Shape & Sendable>(_ shape: S) {
+        _pathClosure = { shape.path(in: $0) }
     }
 
-    nonisolated func path(in rect: CGRect) -> Path {
+    func path(in rect: CGRect) -> Path {
         _pathClosure(rect)
     }
 }
