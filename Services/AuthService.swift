@@ -13,8 +13,9 @@ import Foundation
 
 struct AuthService {
 
-    // 后端地址（Sealos 自定义域名，HTTPS，证书 Let's Encrypt）
-    static let baseURL = "https://api.vmingstudio.com"
+    // 后端地址（临时切换到 Sealos 原始地址，自定义域名证书修复中）
+    // TODO: 证书恢复后改回 https://api.vmingstudio.com
+    static let baseURL = "http://rnqvgzqtcjej.sealosbja.site"
 
     // MARK: - 发送验证码
     static func sendCode(phone: String) async throws {
