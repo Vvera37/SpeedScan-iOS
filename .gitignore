@@ -3,6 +3,10 @@
 *.xcodeproj/xcuserdata
 *.xcworkspace/xcuserdata
 *.xcuserstate
+SpeedScan.xcworkspace/
+
+# 旧目录（中文命名，已废弃）
+极速扫描/
 
 # Build
 .build/

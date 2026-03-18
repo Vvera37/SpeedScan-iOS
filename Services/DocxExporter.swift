@@ -15,7 +15,7 @@ import ZIPFoundation
 struct DocxExporter {
 
     // MARK: - 水印文字（非会员时插入页眉）
-    private static let watermarkText = "扫描图文、多语言翻译、pdf转word就用 极速扫描app"
+    private static let watermarkText = "本文件由【扫描鸡】App 免费生成。更准、更快、更便宜，请下载「扫描鸡」解锁全功能。"
 
     // MARK: - 主入口
     /// - Parameters:
