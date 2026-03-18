@@ -435,15 +435,18 @@ struct PriceCard: View {
                 }
                 .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .primary)
 
-                if let tag = tag {
-                    Text(tag)
-                        .font(.system(size: 11, weight: .bold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(isSelected ? Color(hex: "#FFB800").opacity(0.2) : Color.yellow)
-                        .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .black)
-                        .cornerRadius(5)
-                }
+                // 无论有无 tag，始终占同等高度，确保两张卡片一样高
+                Text(tag ?? " ")
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(tag != nil
+                        ? (isSelected ? Color(hex: "#FFB800").opacity(0.2) : Color.yellow)
+                        : Color.clear)
+                    .foregroundColor(tag != nil
+                        ? (isSelected ? Color(hex: "#FF6B00") : .black)
+                        : .clear)
+                    .cornerRadius(5)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
