@@ -34,10 +34,9 @@ struct ScanResultView: View {
                 ScrollView {
                     VStack(spacing: 16) {
 
-                        // MARK: 顶部缩略图 + 准确率 Badge
+                        // MARK: 顶部缩略图（去掉准确率：数字误导用户，Vision confidence 不代表整体质量）
                         ThumbnailHeaderView(
-                            image: result.originalImage,
-                            confidence: result.confidence
+                            image: result.originalImage
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
@@ -80,9 +79,9 @@ struct ScanResultView: View {
                         //     .padding(.horizontal, 20)
                         // }
 
-                        // 非会员水印提示
+                        // 非会员升级引导（明确告知导出有水印，引导升级）
                         if !subscriptionManager.isPremium {
-                            WatermarkBanner()
+                            UpgradePromptBanner()
                                 .padding(.horizontal, 20)
                         }
 
@@ -106,15 +105,26 @@ struct ScanResultView: View {
                 )
             }
             .sheet(isPresented: $showLoginSheet) {
-                LoginView()
+                LoginView(isModal: true)
                     .environmentObject(appState)
             }
             .navigationTitle("识别结果")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    // 分享入口：仅分享已导出的 Word 文件
+                    // 纯文本不走此入口（微信不支持文本分享）；文字复制用底部「复制全文」
                     Button {
-                        shareText(result.recognizedText)
+                        if let url = exportedFileURL {
+                            shareFile(url: url)
+                        } else {
+                            // 还没有导出过，提示先导出
+                            viewModel.alertItem = AlertItem(
+                                title: Text("请先导出"),
+                                message: Text("点击「导出 Word」生成文档后即可分享"),
+                                dismissButton: .default(Text("好的"))
+                            )
+                        }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -199,50 +209,34 @@ struct ScanResultView: View {
         }
     }
 
-    // MARK: - 分享文字
-    private func shareText(_ text: String) {
-        let ac = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            var topVC = rootVC
-            while let presented = topVC.presentedViewController {
-                topVC = presented
-            }
-            topVC.present(ac, animated: true)
-        }
-    }
 }
 
-// MARK: - 缩略图 + 准确率 Badge
+// MARK: - 缩略图 Header（去掉准确率数字，改为识别完成状态）
 struct ThumbnailHeaderView: View {
     let image: UIImage
-    let confidence: Double
 
     var body: some View {
         HStack(spacing: 16) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(width: 88, height: 88)
+                .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("识别完成")
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
 
-                // 准确率 Badge
                 HStack(spacing: 6) {
-                    Image(systemName: "checkmark.seal.fill")
+                    Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                    Text("准确率 \(Int(confidence * 100))%")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.green)
+                        .font(.system(size: 15))
+                    Text("文字已提取，可复制或导出")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
             }
             Spacer()
         }
@@ -341,15 +335,29 @@ struct TranslateSection: View {
     }
 }
 
-// MARK: - 水印横幅
-struct WatermarkBanner: View {
+// MARK: - 会员升级引导横幅（替代原 WatermarkBanner）
+struct UpgradePromptBanner: View {
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "info.circle")
+            Image(systemName: "crown.fill")
                 .foregroundColor(.orange)
-            Text("本文件由【扫描鸡】App 免费生成，下载扫描鸡解锁全功能")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .font(.system(size: 14))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("免费版导出文件含水印")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.primary)
+                Text("升级会员，导出无水印 Word 文档")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text("升级")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(Color.orange)
+                .cornerRadius(6)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

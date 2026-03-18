@@ -109,8 +109,8 @@ struct ScanView: View {
                 }
             }
             .navigationBarHidden(true)
-            // 图片/相册选择器
-            .sheet(isPresented: $showImagePicker) {
+            // 图片/相册选择器（全屏，符合 HIG 二级页面规范）
+            .fullScreenCover(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: sourceType, selectedImage: $viewModel.selectedImage)
             }
             // PDF 文件选择器
@@ -136,15 +136,15 @@ struct ScanView: View {
                     viewModel.showAlert(title: "文件选择失败", message: error.localizedDescription)
                 }
             }
-            // 扫描结果
-            .sheet(isPresented: $showResult) {
+            // 扫描结果（全屏，符合 HIG 二级页面规范）
+            .fullScreenCover(isPresented: $showResult) {
                 if let result = viewModel.scanResult {
                     ScanResultView(result: result, viewModel: viewModel)
                 }
             }
-            // 登录引导弹窗
+            // 登录引导弹窗（isModal=true：显示关闭X + 隐私协议）
             .sheet(isPresented: $showLoginSheet) {
-                LoginView()
+                LoginView(isModal: true)
                     .environmentObject(appState)
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
