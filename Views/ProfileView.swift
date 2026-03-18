@@ -318,7 +318,7 @@ struct SubscriptionCard: View {
                 Image(systemName: "crown.fill")
                     .foregroundColor(.yellow)
                     .font(.system(size: 20))
-                Text("开通会员")
+                Text("解锁扫描鸡专业版")
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
             }
@@ -372,7 +372,7 @@ struct SubscriptionCard: View {
                         Image(systemName: "crown.fill")
                             .font(.system(size: 15))
                     }
-                    Text(subscriptionManager.isLoading ? "处理中…" : "马上成为尊贵的VIP")
+                    Text(subscriptionManager.isLoading ? "处理中…" : "立即解锁高级功能")
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.black.opacity(0.75))
@@ -456,8 +456,7 @@ struct PriceCard: View {
                         lineWidth: 2
                     )
             )
-            .scaleEffect(isSelected ? 1.04 : 0.97)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
         }
         .buttonStyle(.plain)
     }
