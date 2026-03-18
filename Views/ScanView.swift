@@ -12,7 +12,6 @@ struct ScanView: View {
     @EnvironmentObject var appState: AppState
     @State private var showImagePicker = false
     @State private var showCameraView = false
-    @State private var sourceType: UIImagePickerController.SourceType = .camera
     @State private var showDocumentPicker = false
     @State private var showResult = false
     @State private var showLoginSheet = false
@@ -66,7 +65,7 @@ struct ScanView: View {
                                     subtitle: "从图库选择",
                                     gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]
                                 ) {
-                                    sourceType = .photoLibrary
+
                                     showImagePicker = true
                                 }
                             }
@@ -111,7 +110,7 @@ struct ScanView: View {
             .navigationBarHidden(true)
             // 图片/相册选择器（全屏，符合 HIG 二级页面规范）
             .fullScreenCover(isPresented: $showImagePicker) {
-                ImagePicker(sourceType: sourceType, selectedImage: $viewModel.selectedImage)
+                ImagePicker(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
             }
             // 自定义相机入口（全屏，替代 ImagePicker .camera）
             .fullScreenCover(isPresented: $showCameraView) {
