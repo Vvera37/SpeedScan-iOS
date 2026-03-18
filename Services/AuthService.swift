@@ -14,7 +14,8 @@ import Foundation
 struct AuthService {
 
     // 后端地址
-    static let baseURL = "https://api.vmingstudio.com"
+    // TODO: 域名到位后切换为 https://api.vmingstudio.com
+    static let baseURL = "http://rnqvgzqtcjej.sealosbja.site"
 
     // MARK: - 发送验证码
     static func sendCode(phone: String) async throws {
