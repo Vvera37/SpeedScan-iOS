@@ -233,7 +233,7 @@ struct PremiumStatusCard: View {
             HStack(spacing: 12) {
                 PriceCard(
                     title: "月度会员",
-                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
                     period: "/月",
                     tag: nil,
                     isSelected: selectedPlan == .monthly
@@ -242,7 +242,7 @@ struct PremiumStatusCard: View {
                 }
                 PriceCard(
                     title: "年度会员",
-                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
                     period: "/年",
                     tag: "省66%",
                     isSelected: selectedPlan == .yearly
@@ -337,7 +337,7 @@ struct SubscriptionCard: View {
             HStack(spacing: 12) {
                 PriceCard(
                     title: "月度会员",
-                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "--",
+                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
                     period: "/月",
                     tag: nil,
                     isSelected: selectedPlan == .monthly
@@ -346,7 +346,7 @@ struct SubscriptionCard: View {
                 }
                 PriceCard(
                     title: "年度会员",
-                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "--",
+                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
                     period: "/年",
                     tag: "省66%",
                     isSelected: selectedPlan == .yearly

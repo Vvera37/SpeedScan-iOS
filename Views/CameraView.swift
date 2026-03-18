@@ -386,6 +386,7 @@ struct CameraView: View {
     @State private var isMultiPage: Bool = false
     @State private var selectedIdType: String = "全部类型"
     @State private var cameraPermissionDenied: Bool = false
+    @State private var showAlbumPicker = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -472,13 +473,8 @@ struct CameraView: View {
 
             Spacer()
 
-            // 更多
-            Button {} label: {
-                Text("···")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-            }
+            // 更多（功能待实现，保留占位）
+            Color.clear.frame(width: 44, height: 44)
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -503,6 +499,7 @@ struct CameraView: View {
                         vc.flashMode = flashMode
                     })
                     .ignoresSafeArea(edges: [])
+                    .allowsHitTesting(false)
                     .onChange(of: flashMode) { _, newMode in
                         cameraVC?.flashMode = newMode
                     }
@@ -622,36 +619,26 @@ struct CameraView: View {
     @ViewBuilder
     private var auxIconsRow: some View {
         HStack {
-            // 相册
+            // 相册入口
             Button {
-                // 跳转相册（当前为占位，可接入 ImagePicker）
+                showAlbumPicker = true
             } label: {
                 Image(systemName: "square.grid.3x3")
                     .font(.system(size: 22))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
             }
-
             Spacer()
-
-            // 自动裁剪
-            Button {} label: {
-                Image(systemName: "rectangle.and.arrow.up.right.and.arrow.down.left")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-            }
-
-            // 智能增强
-            Button {} label: {
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-            }
+            // 自动裁剪、智能增强功能待实现，暂时隐藏
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 10)
+        .sheet(isPresented: $showAlbumPicker) {
+            ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
+                .onDisappear {
+                    if capturedImage != nil { onDismiss() }
+                }
+        }
     }
 }
 

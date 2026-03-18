@@ -79,6 +79,7 @@ class ScanViewModel: ObservableObject {
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
         request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en", "ja", "ko"]
+        request.automaticallyDetectsLanguage = true
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         Task.detached(priority: .userInitiated) {
@@ -110,7 +111,7 @@ class ScanViewModel: ObservableObject {
             var observationCount = 0
             var firstImage: UIImage?
 
-            for i in 0..<pdf.pageCount {
+            for i in 0..<min(pdf.pageCount, 20) {
                 guard let page = pdf.page(at: i) else { continue }
 
                 // PDF 页 → UIImage
@@ -134,6 +135,7 @@ class ScanViewModel: ObservableObject {
                 request.recognitionLevel = .accurate
                 request.usesLanguageCorrection = true
                 request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en", "ja", "ko"]
+                request.automaticallyDetectsLanguage = true
 
                 try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
 
