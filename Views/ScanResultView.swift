@@ -449,10 +449,10 @@ struct RoundedCorner: Shape {
     }
 }
 
-struct AnyShape: Shape {
-    private let pathClosure: (CGRect) -> Path
+struct AnyShape: Shape, @unchecked Sendable {
+    private let pathClosure: @Sendable (CGRect) -> Path
 
-    init<S: Shape>(_ shape: S) {
+    init<S: Shape & Sendable>(_ shape: S) {
         pathClosure = shape.path(in:)
     }
 
