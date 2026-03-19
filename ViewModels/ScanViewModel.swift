@@ -29,62 +29,53 @@ class ScanViewModel: ObservableObject {
             return
         }
 
-        let request = VNRecognizeTextRequest { [weak self] request, error in
-            guard let self else { return }
-
-            if let error = error {
-                Task { @MainActor in
-                    self.isProcessing = false
-                    self.showAlert(title: "识别错误", message: error.localizedDescription)
-                }
-                return
-            }
-
-            guard let observations = request.results as? [VNRecognizedTextObservation] else {
-                Task { @MainActor in
-                    self.isProcessing = false
-                    self.showAlert(title: "识别失败", message: "未能从图片中提取到文字，请确认图片清晰")
-                }
-                return
-            }
-
-            // 提取文字 + 计算置信度均值
-            var totalConfidence: Float = 0
-            var lines: [String] = []
-            for obs in observations {
-                if let top = obs.topCandidates(1).first {
-                    lines.append(top.string)
-                    totalConfidence += top.confidence
-                }
-            }
-            let text = lines.joined(separator: "\n")
-            let avgConfidence = observations.isEmpty ? 0 : Double(totalConfidence / Float(observations.count))
-
-            // 语言检测
-            let lang = self.detectLanguage(text)
-
-            Task { @MainActor in
-                self.isProcessing = false
-                self.scanResult = OCRResult(
-                    originalImage: image,
-                    recognizedText: text,
-                    detectedLanguage: lang,
-                    confidence: avgConfidence,
-                    timestamp: Date()
-                )
-            }
-        }
-
-        // 配置 OCR 选项
+        // iOS 17+ 推荐写法：使用 revision3，避免过时 API 警告
+        let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en", "ja", "ko"]
+        // zh-Hant 放首位：繁体优先匹配，兼顾简体/英文/日文/韩文
+        request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US", "ja-JP", "ko-KR"]
         request.automaticallyDetectsLanguage = true
+        // iOS 16+ 推荐：明确指定 revision，消除 deprecation 警告
+        request.revision = VNRecognizeTextRequestRevision3
 
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        Task.detached(priority: .userInitiated) {
+        let handler = VNImageRequestHandler(cgImage: cgImage)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
             do {
                 try handler.perform([request])
+
+                guard let observations = request.results else {
+                    await MainActor.run {
+                        self.isProcessing = false
+                        self.showAlert(title: "识别失败", message: "未能从图片中提取到文字，请确认图片清晰")
+                    }
+                    return
+                }
+
+                // 提取文字 + 计算置信度均值
+                var totalConfidence: Float = 0
+                var lines: [String] = []
+                for obs in observations {
+                    if let top = obs.topCandidates(1).first {
+                        lines.append(top.string)
+                        totalConfidence += top.confidence
+                    }
+                }
+                let text = lines.joined(separator: "\n")
+                let avgConfidence = observations.isEmpty ? 0 : Double(totalConfidence / Float(observations.count))
+                let lang = self.detectLanguage(text)
+
+                await MainActor.run {
+                    self.isProcessing = false
+                    self.scanResult = OCRResult(
+                        originalImage: image,
+                        recognizedText: text,
+                        detectedLanguage: lang,
+                        confidence: avgConfidence,
+                        timestamp: Date()
+                    )
+                }
             } catch {
                 await MainActor.run {
                     self.isProcessing = false
@@ -129,15 +120,16 @@ class ScanViewModel: ObservableObject {
                 }
                 if firstImage == nil { firstImage = pageImage }
 
-                // OCR 识别
+                // OCR 识别（iOS 17+ 现代写法，消除 deprecation 警告）
                 guard let cgImage = pageImage.cgImage else { continue }
                 let request = VNRecognizeTextRequest()
                 request.recognitionLevel = .accurate
                 request.usesLanguageCorrection = true
-                request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en", "ja", "ko"]
+                request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US", "ja-JP", "ko-KR"]
                 request.automaticallyDetectsLanguage = true
+                request.revision = VNRecognizeTextRequestRevision3
 
-                try? VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
+                try? VNImageRequestHandler(cgImage: cgImage).perform([request])
 
                 let observations = request.results ?? []
                 let lines = observations.compactMap { $0.topCandidates(1).first }

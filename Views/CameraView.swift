@@ -124,21 +124,27 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     }
 
     private func setupSession() {
+        // 必须先在主线程检查权限状态，再切到后台配置
+        // 严禁在主线程调用 configureSession — AVCaptureDeviceInput 初始化会触发 mach_msg2_trap 死锁
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         guard status == .authorized || status == .notDetermined else { return }
 
         if status == .notDetermined {
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                if granted {
-                    DispatchQueue.main.async { self?.configureSession() }
-                }
+                guard granted else { return }
+                // requestAccess 回调已在后台线程，可直接配置
+                self?.configureSession()
             }
         } else {
-            configureSession()
+            // 切到后台线程，避免主线程 mach_msg2_trap
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.configureSession()
+            }
         }
     }
 
     private func configureSession() {
+        // ⚠️ 此函数必须在后台线程调用
         session.beginConfiguration()
         session.sessionPreset = .photo
 
@@ -160,15 +166,17 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
         session.commitConfiguration()
 
-        // 预览层
-        previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = view.bounds
-        view.layer.insertSublayer(previewLayer, at: 0)
-
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            self?.session.startRunning()
+        // 预览层必须回主线程添加（UI 操作）
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
+            self.previewLayer.videoGravity = .resizeAspectFill
+            self.previewLayer.frame = self.view.bounds
+            self.view.layer.insertSublayer(self.previewLayer, at: 0)
         }
+
+        // startRunning 在后台执行（已在后台线程，直接调用）
+        session.startRunning()
     }
 
     func capturePhoto() {
