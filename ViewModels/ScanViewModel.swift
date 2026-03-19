@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import Vision      // iOS 18 新 API：RecognizeTextRequest，无 VN 前缀
+import Vision
 import NaturalLanguage
 import SwiftData
 import PDFKit
@@ -16,7 +16,7 @@ class ScanViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var alertItem: AlertItem?
 
-    // MARK: - 执行 OCR（iOS 18 Swift 原生 Vision API）
+    // MARK: - 执行 OCR
     func performOCR() {
         guard let image = selectedImage else { return }
         isProcessing = true
@@ -24,9 +24,12 @@ class ScanViewModel: ObservableObject {
 
         Task {
             do {
-                let result = try await recognizeText(from: image, originalImage: image)
+                let result = try await recognizeText(from: image)
                 self.scanResult = result
                 self.isProcessing = false
+            } catch OCRError.noTextFound {
+                self.isProcessing = false
+                self.showAlert(title: "识别失败", message: "未能从图片中提取到文字，请确认图片清晰")
             } catch {
                 self.isProcessing = false
                 self.showAlert(title: "识别错误", message: error.localizedDescription)
@@ -34,16 +37,19 @@ class ScanViewModel: ObservableObject {
         }
     }
 
-    // MARK: - 核心识别函数（iOS 18 新 API）
-    /// iOS 18 RecognizeTextRequest：
-    /// - 自动处理图片方向（无需手动纠偏 EXIF）
-    /// - async/await 原生支持
-    /// - 强类型结果，无需强转
-    private func recognizeText(from image: UIImage, originalImage: UIImage) async throws -> OCRResult {
+    // MARK: - 核心识别（iOS 18 Vision API）
+    /// perform(on:) 接受 CGImage，不接受 UIImage。
+    /// 先用 UIGraphicsImageRenderer 将 EXIF 方向烘焙进像素（输出 orientation=.up），
+    /// 再取 cgImage 传入，orientation 参数显式传 .up，双保险。
+    private func recognizeText(from image: UIImage) async throws -> OCRResult {
+        guard let normalizedImage = normalizeOrientation(image),
+              let cgImage = normalizedImage.cgImage else {
+            throw OCRError.imagePrepareFailed
+        }
+
         var request = RecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        // zh-Hant 优先：繁体证件（香港签证等）识别准确
         request.recognitionLanguages = [
             Locale.Language(identifier: "zh-Hant"),
             Locale.Language(identifier: "zh-Hans"),
@@ -53,8 +59,8 @@ class ScanViewModel: ObservableObject {
         ]
         request.automaticallyDetectsLanguage = true
 
-        // perform(on: UIImage) 自动处理方向，无需 compressImage / EXIF 纠偏
-        let observations = try await request.perform(on: image)
+        // orientation: .up — 与 normalizeOrientation 输出对齐
+        let observations = try await request.perform(on: cgImage, orientation: .up)
 
         guard !observations.isEmpty else {
             throw OCRError.noTextFound
@@ -73,7 +79,7 @@ class ScanViewModel: ObservableObject {
         let lang = detectLanguage(text)
 
         return OCRResult(
-            originalImage: originalImage,
+            originalImage: image,
             recognizedText: text,
             detectedLanguage: lang,
             confidence: avgConfidence,
@@ -91,65 +97,80 @@ class ScanViewModel: ObservableObject {
         scanResult = nil
 
         Task {
-            do {
-                var allText: [String] = []
-                var totalConfidence: Double = 0
-                var observationCount = 0
-                var firstImage: UIImage?
+            var allText: [String] = []
+            var totalConfidence: Double = 0
+            var observationCount = 0
+            var firstImage: UIImage?
 
-                for i in 0..<min(pdf.pageCount, 20) {
-                    guard let page = pdf.page(at: i) else { continue }
+            for i in 0..<min(pdf.pageCount, 20) {
+                guard let page = pdf.page(at: i) else { continue }
 
-                    // PDF 页 → UIImage（UIGraphicsImageRenderer 输出天然 .up 方向）
-                    let pageRect = page.bounds(for: .mediaBox)
-                    let scale: CGFloat = 2.0
-                    let renderer = UIGraphicsImageRenderer(size: CGSize(
-                        width: pageRect.width * scale,
-                        height: pageRect.height * scale
-                    ))
-                    let pageImage = renderer.image { ctx in
-                        ctx.cgContext.scaleBy(x: scale, y: scale)
-                        UIColor.white.setFill()
-                        ctx.fill(CGRect(origin: .zero, size: pageRect.size))
-                        page.draw(with: .mediaBox, to: ctx.cgContext)
-                    }
-                    if firstImage == nil { firstImage = pageImage }
-
-                    // iOS 18 新 API 识别
-                    var request = RecognizeTextRequest()
-                    request.recognitionLevel = .accurate
-                    request.usesLanguageCorrection = true
-                    request.recognitionLanguages = [
-                        Locale.Language(identifier: "zh-Hant"),
-                        Locale.Language(identifier: "zh-Hans"),
-                        Locale.Language(identifier: "en-US"),
-                        Locale.Language(identifier: "ja-JP"),
-                        Locale.Language(identifier: "ko-KR")
-                    ]
-                    request.automaticallyDetectsLanguage = true
-
-                    let observations = (try? await request.perform(on: pageImage)) ?? []
-                    let lines = observations.compactMap { $0.topCandidates(1).first }
-                    allText.append(lines.map(\.string).joined(separator: "\n"))
-                    totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
-                    observationCount += lines.count
+                // PDF 页 → UIImage（UIGraphicsImageRenderer 输出天然 .up 方向）
+                let pageRect = page.bounds(for: .mediaBox)
+                let scale: CGFloat = 2.0
+                let renderer = UIGraphicsImageRenderer(size: CGSize(
+                    width: pageRect.width * scale,
+                    height: pageRect.height * scale
+                ))
+                let pageImage = renderer.image { ctx in
+                    ctx.cgContext.scaleBy(x: scale, y: scale)
+                    UIColor.white.setFill()
+                    ctx.fill(CGRect(origin: .zero, size: pageRect.size))
+                    page.draw(with: .mediaBox, to: ctx.cgContext)
                 }
+                if firstImage == nil { firstImage = pageImage }
 
-                let fullText = allText.joined(separator: "\n\n")
-                let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
-                let lang = detectLanguage(fullText)
-                let thumbnail = firstImage ?? UIImage()
+                guard let cgImage = pageImage.cgImage else { continue }
 
-                self.isProcessing = false
-                self.scanResult = OCRResult(
-                    originalImage: thumbnail,
-                    recognizedText: fullText.isEmpty ? "未能从 PDF 中提取到文字" : fullText,
-                    detectedLanguage: lang,
-                    confidence: avgConfidence,
-                    timestamp: Date()
-                )
-                onComplete?()
+                var request = RecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.usesLanguageCorrection = true
+                request.recognitionLanguages = [
+                    Locale.Language(identifier: "zh-Hant"),
+                    Locale.Language(identifier: "zh-Hans"),
+                    Locale.Language(identifier: "en-US"),
+                    Locale.Language(identifier: "ja-JP"),
+                    Locale.Language(identifier: "ko-KR")
+                ]
+                request.automaticallyDetectsLanguage = true
+
+                let observations = (try? await request.perform(on: cgImage, orientation: .up)) ?? []
+                let lines = observations.compactMap { $0.topCandidates(1).first }
+                allText.append(lines.map(\.string).joined(separator: "\n"))
+                totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
+                observationCount += lines.count
             }
+
+            let fullText = allText.joined(separator: "\n\n")
+            let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
+            let lang = detectLanguage(fullText)
+
+            self.isProcessing = false
+            self.scanResult = OCRResult(
+                originalImage: firstImage ?? UIImage(),
+                recognizedText: fullText.isEmpty ? "未能从 PDF 中提取到文字" : fullText,
+                detectedLanguage: lang,
+                confidence: avgConfidence,
+                timestamp: Date()
+            )
+            onComplete?()
+        }
+    }
+
+    // MARK: - 图片方向归一化
+    /// 用 UIGraphicsImageRenderer 重绘，将 EXIF imageOrientation 烘焙进像素，
+    /// 输出的 UIImage.imageOrientation == .up，cgImage 可直接传给 Vision。
+    /// 同时限制最大尺寸 2048px，控制内存占用。
+    private func normalizeOrientation(_ image: UIImage, maxDimension: CGFloat = 2048) -> UIImage? {
+        let size = image.size
+        var targetSize = size
+        if size.width > maxDimension || size.height > maxDimension {
+            let scale = maxDimension / max(size.width, size.height)
+            targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        }
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
 
@@ -202,9 +223,11 @@ class ScanViewModel: ObservableObject {
 // MARK: - OCR 错误
 enum OCRError: LocalizedError {
     case noTextFound
+    case imagePrepareFailed
     var errorDescription: String? {
         switch self {
-        case .noTextFound: return "未能从图片中提取到文字，请确认图片清晰"
+        case .noTextFound:        return "未能从图片中提取到文字，请确认图片清晰"
+        case .imagePrepareFailed: return "图片处理失败，请重试"
         }
     }
 }

@@ -151,11 +151,12 @@ struct ScanView: View {
                     .environmentObject(appState)
             }
             .onChange(of: viewModel.selectedImage) { _, newImage in
-                if newImage != nil {
-                    // 访客次数检查
-                    if appState.recordGuestScan() {
-                        viewModel.performOCR()
-                    } else {
+                guard newImage != nil else { return }
+                // 访客次数检查：状态修改延到下一 RunLoop，避免 "Modifying state during view update" 警告
+                if appState.recordGuestScan() {
+                    viewModel.performOCR()
+                } else {
+                    Task { @MainActor in
                         viewModel.selectedImage = nil
                         showLoginSheet = true
                     }

@@ -45,9 +45,8 @@ struct DocxExporter {
                 try fileManager.removeItem(at: docxURL)
             }
 
-            guard let archive = Archive(url: docxURL, accessMode: .create) else {
-                return nil
-            }
+            // ZIPFoundation 新版：init throws，不再返回 Optional
+            let archive = try Archive(url: docxURL, accessMode: .create)
 
             // 添加各文件到压缩包
             try addEntry(archive: archive, path: "[Content_Types].xml", content: contentTypesXML)
