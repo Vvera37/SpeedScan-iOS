@@ -39,7 +39,8 @@ class ScanViewModel: ObservableObject {
         // iOS 16+ 推荐：明确指定 revision，消除 deprecation 警告
         request.revision = VNRecognizeTextRequestRevision3
 
-        let handler = VNImageRequestHandler(cgImage: cgImage)
+        // compressImage 已将方向烘焙为 .up，此处方向参数对齐，双保险
+        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up)
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             do {
@@ -161,19 +162,22 @@ class ScanViewModel: ObservableObject {
         detectLanguage(text)
     }
 
-    // MARK: - 图片压缩
+    // MARK: - 图片压缩 + 方向纠正
+    /// 压缩尺寸，同时将 EXIF 旋转信息「烘焙」进像素数据，确保 cgImage 方向始终 up。
+    /// 横拍的照片（imageOrientation == .right / .left）如不纠正，Vision 会拿到旋转的像素，
+    /// 导致识别文字横排乱序。
     private func compressImage(_ image: UIImage, maxDimension: CGFloat = 2048) -> UIImage? {
-        let size = image.size
-        var newSize = size
-        if size.width > maxDimension || size.height > maxDimension {
-            let scale = maxDimension / max(size.width, size.height)
-            newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        // 先用 UIGraphicsImageRenderer 重绘：它会自动应用 imageOrientation，输出的 UIImage.imageOrientation == .up
+        let originalSize = image.size          // 已是「视觉尺寸」，含旋转
+        var targetSize = originalSize
+        if originalSize.width > maxDimension || originalSize.height > maxDimension {
+            let scale = maxDimension / max(originalSize.width, originalSize.height)
+            targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
         }
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        let compressed = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return compressed
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 
     // MARK: - 语言检测
