@@ -1,10 +1,10 @@
 //
 // ScanViewModel.swift
-// OCR 核心逻辑 — Vision 框架端侧识别
+// OCR 核心逻辑 — iOS 18 Vision 框架（Swift 原生 API）
 //
 
 import SwiftUI
-import Vision
+import Vision      // iOS 18 新 API：RecognizeTextRequest，无 VN 前缀
 import NaturalLanguage
 import SwiftData
 import PDFKit
@@ -16,74 +16,69 @@ class ScanViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var alertItem: AlertItem?
 
-    // MARK: - 执行 OCR
+    // MARK: - 执行 OCR（iOS 18 Swift 原生 Vision API）
     func performOCR() {
         guard let image = selectedImage else { return }
         isProcessing = true
         scanResult = nil
 
-        guard let compressedImage = compressImage(image),
-              let cgImage = compressedImage.cgImage else {
-            isProcessing = false
-            showAlert(title: "错误", message: "图片处理失败，请重试")
-            return
-        }
-
-        // iOS 17+ 推荐写法：使用 revision3，避免过时 API 警告
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        // zh-Hant 放首位：繁体优先匹配，兼顾简体/英文/日文/韩文
-        request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US", "ja-JP", "ko-KR"]
-        request.automaticallyDetectsLanguage = true
-        // iOS 16+ 推荐：明确指定 revision，消除 deprecation 警告
-        request.revision = VNRecognizeTextRequestRevision3
-
-        // compressImage 已将方向烘焙为 .up，此处方向参数对齐，双保险
-        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up)
-        Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
+        Task {
             do {
-                try handler.perform([request])
-
-                guard let observations = request.results else {
-                    await MainActor.run {
-                        self.isProcessing = false
-                        self.showAlert(title: "识别失败", message: "未能从图片中提取到文字，请确认图片清晰")
-                    }
-                    return
-                }
-
-                // 提取文字 + 计算置信度均值
-                var totalConfidence: Float = 0
-                var lines: [String] = []
-                for obs in observations {
-                    if let top = obs.topCandidates(1).first {
-                        lines.append(top.string)
-                        totalConfidence += top.confidence
-                    }
-                }
-                let text = lines.joined(separator: "\n")
-                let avgConfidence = observations.isEmpty ? 0 : Double(totalConfidence / Float(observations.count))
-                let lang = self.detectLanguage(text)
-
-                await MainActor.run {
-                    self.isProcessing = false
-                    self.scanResult = OCRResult(
-                        originalImage: image,
-                        recognizedText: text,
-                        detectedLanguage: lang,
-                        confidence: avgConfidence,
-                        timestamp: Date()
-                    )
-                }
+                let result = try await recognizeText(from: image, originalImage: image)
+                self.scanResult = result
+                self.isProcessing = false
             } catch {
-                await MainActor.run {
-                    self.isProcessing = false
-                    self.showAlert(title: "识别错误", message: error.localizedDescription)
-                }
+                self.isProcessing = false
+                self.showAlert(title: "识别错误", message: error.localizedDescription)
             }
         }
+    }
+
+    // MARK: - 核心识别函数（iOS 18 新 API）
+    /// iOS 18 RecognizeTextRequest：
+    /// - 自动处理图片方向（无需手动纠偏 EXIF）
+    /// - async/await 原生支持
+    /// - 强类型结果，无需强转
+    private func recognizeText(from image: UIImage, originalImage: UIImage) async throws -> OCRResult {
+        var request = RecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        // zh-Hant 优先：繁体证件（香港签证等）识别准确
+        request.recognitionLanguages = [
+            Locale.Language(identifier: "zh-Hant"),
+            Locale.Language(identifier: "zh-Hans"),
+            Locale.Language(identifier: "en-US"),
+            Locale.Language(identifier: "ja-JP"),
+            Locale.Language(identifier: "ko-KR")
+        ]
+        request.automaticallyDetectsLanguage = true
+
+        // perform(on: UIImage) 自动处理方向，无需 compressImage / EXIF 纠偏
+        let observations = try await request.perform(on: image)
+
+        guard !observations.isEmpty else {
+            throw OCRError.noTextFound
+        }
+
+        var totalConfidence: Float = 0
+        var lines: [String] = []
+        for obs in observations {
+            if let top = obs.topCandidates(1).first {
+                lines.append(top.string)
+                totalConfidence += top.confidence
+            }
+        }
+        let text = lines.joined(separator: "\n")
+        let avgConfidence = Double(totalConfidence / Float(observations.count))
+        let lang = detectLanguage(text)
+
+        return OCRResult(
+            originalImage: originalImage,
+            recognizedText: text,
+            detectedLanguage: lang,
+            confidence: avgConfidence,
+            timestamp: Date()
+        )
     }
 
     // MARK: - PDF 处理（多页合并 OCR）
@@ -95,56 +90,56 @@ class ScanViewModel: ObservableObject {
         isProcessing = true
         scanResult = nil
 
-        Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
+        Task {
+            do {
+                var allText: [String] = []
+                var totalConfidence: Double = 0
+                var observationCount = 0
+                var firstImage: UIImage?
 
-            var allText: [String] = []
-            var totalConfidence: Double = 0
-            var observationCount = 0
-            var firstImage: UIImage?
+                for i in 0..<min(pdf.pageCount, 20) {
+                    guard let page = pdf.page(at: i) else { continue }
 
-            for i in 0..<min(pdf.pageCount, 20) {
-                guard let page = pdf.page(at: i) else { continue }
+                    // PDF 页 → UIImage（UIGraphicsImageRenderer 输出天然 .up 方向）
+                    let pageRect = page.bounds(for: .mediaBox)
+                    let scale: CGFloat = 2.0
+                    let renderer = UIGraphicsImageRenderer(size: CGSize(
+                        width: pageRect.width * scale,
+                        height: pageRect.height * scale
+                    ))
+                    let pageImage = renderer.image { ctx in
+                        ctx.cgContext.scaleBy(x: scale, y: scale)
+                        UIColor.white.setFill()
+                        ctx.fill(CGRect(origin: .zero, size: pageRect.size))
+                        page.draw(with: .mediaBox, to: ctx.cgContext)
+                    }
+                    if firstImage == nil { firstImage = pageImage }
 
-                // PDF 页 → UIImage
-                let pageRect = page.bounds(for: .mediaBox)
-                let scale: CGFloat = 2.0  // 2x 清晰度
-                let renderer = UIGraphicsImageRenderer(size: CGSize(
-                    width: pageRect.width * scale,
-                    height: pageRect.height * scale
-                ))
-                let pageImage = renderer.image { ctx in
-                    ctx.cgContext.scaleBy(x: scale, y: scale)
-                    UIColor.white.setFill()
-                    ctx.fill(CGRect(origin: .zero, size: pageRect.size))
-                    page.draw(with: .mediaBox, to: ctx.cgContext)
+                    // iOS 18 新 API 识别
+                    var request = RecognizeTextRequest()
+                    request.recognitionLevel = .accurate
+                    request.usesLanguageCorrection = true
+                    request.recognitionLanguages = [
+                        Locale.Language(identifier: "zh-Hant"),
+                        Locale.Language(identifier: "zh-Hans"),
+                        Locale.Language(identifier: "en-US"),
+                        Locale.Language(identifier: "ja-JP"),
+                        Locale.Language(identifier: "ko-KR")
+                    ]
+                    request.automaticallyDetectsLanguage = true
+
+                    let observations = (try? await request.perform(on: pageImage)) ?? []
+                    let lines = observations.compactMap { $0.topCandidates(1).first }
+                    allText.append(lines.map(\.string).joined(separator: "\n"))
+                    totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
+                    observationCount += lines.count
                 }
-                if firstImage == nil { firstImage = pageImage }
 
-                // OCR 识别（iOS 17+ 现代写法，消除 deprecation 警告）
-                guard let cgImage = pageImage.cgImage else { continue }
-                let request = VNRecognizeTextRequest()
-                request.recognitionLevel = .accurate
-                request.usesLanguageCorrection = true
-                request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US", "ja-JP", "ko-KR"]
-                request.automaticallyDetectsLanguage = true
-                request.revision = VNRecognizeTextRequestRevision3
+                let fullText = allText.joined(separator: "\n\n")
+                let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
+                let lang = detectLanguage(fullText)
+                let thumbnail = firstImage ?? UIImage()
 
-                try? VNImageRequestHandler(cgImage: cgImage).perform([request])
-
-                let observations = request.results ?? []
-                let lines = observations.compactMap { $0.topCandidates(1).first }
-                allText.append(lines.map(\.string).joined(separator: "\n"))
-                totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
-                observationCount += lines.count
-            }
-
-            let fullText = allText.joined(separator: "\n\n")
-            let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
-            let lang = await self.detectLanguageAsync(fullText)
-            let thumbnail = firstImage ?? UIImage()
-
-            await MainActor.run {
                 self.isProcessing = false
                 self.scanResult = OCRResult(
                     originalImage: thumbnail,
@@ -158,28 +153,6 @@ class ScanViewModel: ObservableObject {
         }
     }
 
-    private func detectLanguageAsync(_ text: String) async -> String {
-        detectLanguage(text)
-    }
-
-    // MARK: - 图片压缩 + 方向纠正
-    /// 压缩尺寸，同时将 EXIF 旋转信息「烘焙」进像素数据，确保 cgImage 方向始终 up。
-    /// 横拍的照片（imageOrientation == .right / .left）如不纠正，Vision 会拿到旋转的像素，
-    /// 导致识别文字横排乱序。
-    private func compressImage(_ image: UIImage, maxDimension: CGFloat = 2048) -> UIImage? {
-        // 先用 UIGraphicsImageRenderer 重绘：它会自动应用 imageOrientation，输出的 UIImage.imageOrientation == .up
-        let originalSize = image.size          // 已是「视觉尺寸」，含旋转
-        var targetSize = originalSize
-        if originalSize.width > maxDimension || originalSize.height > maxDimension {
-            let scale = maxDimension / max(originalSize.width, originalSize.height)
-            targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
-        }
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-    }
-
     // MARK: - 语言检测
     private func detectLanguage(_ text: String) -> String {
         guard !text.isEmpty else { return "zh-Hans" }
@@ -190,7 +163,6 @@ class ScanViewModel: ObservableObject {
     }
 
     // MARK: - 导出 Word
-    /// 生成 .docx 文件，返回文件路径（在后台线程执行）
     func exportWord(isPremium: Bool) async -> String? {
         guard let result = scanResult else { return nil }
         return await Task.detached(priority: .userInitiated) {
@@ -227,16 +199,24 @@ class ScanViewModel: ObservableObject {
     }
 }
 
+// MARK: - OCR 错误
+enum OCRError: LocalizedError {
+    case noTextFound
+    var errorDescription: String? {
+        switch self {
+        case .noTextFound: return "未能从图片中提取到文字，请确认图片清晰"
+        }
+    }
+}
+
 // MARK: - OCR 结果模型
 struct OCRResult: Identifiable, Equatable {
-    static func == (lhs: OCRResult, rhs: OCRResult) -> Bool {
-        lhs.id == rhs.id
-    }
+    static func == (lhs: OCRResult, rhs: OCRResult) -> Bool { lhs.id == rhs.id }
     let id = UUID()
     let originalImage: UIImage
     let recognizedText: String
     let detectedLanguage: String
-    let confidence: Double       // 0.0 ~ 1.0
+    let confidence: Double
     let timestamp: Date
 
     var isChinese: Bool {
