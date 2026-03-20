@@ -125,26 +125,62 @@ class ScanViewModel: ObservableObject {
             }
         }
 
-        // ── 行内重建：按 minX 排序，大间距插制表符 ───────────────────
-        // 列间距阈值：两块之间空白 > 0.1（归一化）认为是分栏
-        let columnGapThreshold: CGFloat = 0.1
-        let lines: [String] = rows.map { row in
+        // ── 计算平均行高（用于段落空行判断）────────────────────────
+        // rows 中每行的代表 midY 取第一个 block
+        let rowMidYs = rows.map { $0[0].midY }
+        var avgLineHeight: CGFloat = 0.04  // 默认值，防止除零
+        if rowMidYs.count >= 2 {
+            var gaps: [CGFloat] = []
+            for i in 1..<rowMidYs.count {
+                let gap = rowMidYs[i - 1] - rowMidYs[i]  // 从上到下，前 > 后，gap > 0
+                if gap > 0 { gaps.append(gap) }
+            }
+            if !gaps.isEmpty {
+                avgLineHeight = gaps.reduce(0, +) / CGFloat(gaps.count)
+            }
+        }
+        let paragraphBreakThreshold = avgLineHeight * 1.5  // 超过 1.5 倍行高视为段落间距
+
+        // ── 行内重建：按 minX 排序，大间距插填充点 ──────────────────
+        let columnGapThreshold: CGFloat = 0.1  // 归一化间距 > 10% 认为是分栏
+        let dotFillWidth: CGFloat = 0.012       // 每个点号约占 1.2% 宽度
+
+        var outputLines: [String] = []
+        for (rowIdx, row) in rows.enumerated() {
+            // 段落空行：与上一行间距 > 1.5 倍行高，插入空行
+            if rowIdx > 0 {
+                let prevMidY = rows[rowIdx - 1][0].midY
+                let currMidY = row[0].midY
+                let gap = prevMidY - currMidY  // 正值
+                if gap > paragraphBreakThreshold {
+                    outputLines.append("")  // 插入空行，产生段落感
+                }
+            }
+
             let rowSorted = row.sorted { $0.minX < $1.minX }
             var result = ""
             var prevMaxX: CGFloat = 0
+
             for (i, block) in rowSorted.enumerated() {
                 if i == 0 {
                     result += block.text
                 } else {
                     let gap = block.minX - prevMaxX
-                    result += gap > columnGapThreshold ? "\t\(block.text)" : " \(block.text)"
+                    if gap > columnGapThreshold {
+                        // 大间距：用点号填充引导视线（类似目录引导线）
+                        let dotCount = max(1, Int(gap / dotFillWidth))
+                        let dots = " " + String(repeating: ".", count: min(dotCount, 30)) + " "
+                        result += "\(dots)\(block.text)"
+                    } else {
+                        result += " \(block.text)"
+                    }
                 }
                 prevMaxX = block.maxX
             }
-            return result
+            outputLines.append(result)
         }
 
-        return lines.joined(separator: "\n")
+        return outputLines.joined(separator: "\n")
     }
 
     // MARK: - PDF 处理（多页合并 OCR）

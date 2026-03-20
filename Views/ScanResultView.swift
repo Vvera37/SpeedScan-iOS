@@ -152,16 +152,25 @@ struct ScanResultView: View {
         if isTranslated {
             // 切回原文
             isTranslated = false
-        } else {
-            if !translatedText.isEmpty {
-                // 已有缓存译文，直接切换
-                isTranslated = true
-            } else {
-                // 触发 Apple Translation
-                isTranslating = true
-                showTranslationSheet = true
-            }
+            return
         }
+        if !translatedText.isEmpty {
+            // 已有缓存译文，直接切换
+            isTranslated = true
+            return
+        }
+        // 模拟器不支持 Apple Translation，给出明确提示
+        #if targetEnvironment(simulator)
+        viewModel.alertItem = AlertItem(
+            title: Text("请在真机上使用"),
+            message: Text("翻译功能依赖系统语言包，模拟器不支持，请安装到真机后使用。"),
+            dismissButton: .default(Text("知道了"))
+        )
+        #else
+        // 触发 Apple Translation
+        isTranslating = true
+        showTranslationSheet = true
+        #endif
     }
 
     @State private var translationTrigger = false
