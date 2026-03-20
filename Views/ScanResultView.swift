@@ -56,42 +56,11 @@ struct ScanResultView: View {
                             }
                         } else {
                             // ── 单图单块渲染 ───────────────────────────
-                            VStack(alignment: .leading, spacing: 0) {
-                                HStack {
-                                    Text("识别内容")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    if isTranslated {
-                                        Label("已翻译", systemImage: "checkmark.circle.fill")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.green)
-                                    } else {
-                                        Text("\(result.recognizedText.count) 字")
-                                            .font(.system(size: 13))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-
-                                Divider().padding(.horizontal, 16)
-
-                                // 关键修复：GeometryReader 传实际宽度，避免初次布局宽度为 0
-                                GeometryReader { geo in
-                                    SelectableTextView(
-                                        rawText: displayText,
-                                        containerWidth: geo.size.width
-                                    )
-                                }
-                                .padding(16)
-                                // frame minHeight 让 GeometryReader 有初始高度，
-                                // 实际高度由 SelectableTextView 内部撑开
-                                .frame(minHeight: 120)
-                            }
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                            SinglePageTextCard(
+                                rawText: displayText,
+                                charCount: result.recognizedText.count,
+                                isTranslated: isTranslated
+                            )
                             .padding(.horizontal, 20)
                         }
 
@@ -254,33 +223,57 @@ struct ScanResultView: View {
     }
 }
 
+// MARK: - 单图文字卡片
+struct SinglePageTextCard: View {
+    let rawText: String
+    let charCount: Int
+    let isTranslated: Bool
+    @State private var textHeight: CGFloat = 200
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("识别内容").font(.system(size: 14, weight: .semibold)).foregroundColor(.secondary)
+                Spacer()
+                if isTranslated {
+                    Label("已翻译", systemImage: "checkmark.circle.fill").font(.system(size: 12)).foregroundColor(.green)
+                } else {
+                    Text("\(charCount) 字").font(.system(size: 13)).foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+
+            Divider().padding(.horizontal, 16)
+
+            SelectableTextView(rawText: rawText, contentHeight: $textHeight)
+                .frame(height: textHeight)
+                .padding(16)
+        }
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
 // MARK: - PDF 单页 Cell
 struct PageCell: View {
     let page: ScanPage
     let totalPages: Int
+    @State private var textHeight: CGFloat = 120
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 页码条
             HStack {
-                Text("第 \(page.id) 页")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
+                Text("第 \(page.id) 页").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
                 Spacer()
-                Text("\(page.id) / \(totalPages)")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.secondary.opacity(0.6))
+                Text("\(page.id) / \(totalPages)").font(.system(size: 11)).foregroundColor(Color.secondary.opacity(0.6))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14).padding(.vertical, 8)
             .background(Color(UIColor.systemGroupedBackground))
 
-            // 页面内容 — GeometryReader 传实际宽度
-            GeometryReader { geo in
-                SelectableTextView(rawText: page.content, containerWidth: geo.size.width)
-            }
-            .padding(14)
-            .frame(minHeight: 80)
+            SelectableTextView(rawText: page.content, contentHeight: $textHeight)
+                .frame(height: textHeight)
+                .padding(14)
         }
         .background(Color.white)
         .cornerRadius(14)
@@ -342,12 +335,14 @@ struct TranslateToggleButton: View {
 }
 
 // MARK: - SelectableTextView（高度截断终极修复）
-// 用 containerWidth 参数直接传入外层 GeometryReader 测量的宽度，
-// 避免 UITextView.bounds.width 初次为 0 导致 intrinsicContentSize 计算错误。
+// 方案：UIKit 用 sizeThatFits 计算真实内容高度，通过 @Binding 回传给 SwiftUI，
+// 用 .frame(height:) 精确设置高度，彻底绕开 GeometryReader 在 ScrollView 里坍缩的问题。
 struct SelectableTextView: UIViewRepresentable {
     let rawText: String
-    let containerWidth: CGFloat
+    @Binding var contentHeight: CGFloat
     private let fontSize: CGFloat = 14
+    // 屏幕宽度减去外层 padding（左右各20 + 内层各16 = 72）
+    private var targetWidth: CGFloat { UIScreen.main.bounds.width - 72 }
 
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
@@ -361,24 +356,17 @@ struct SelectableTextView: UIViewRepresentable {
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainer.lineBreakMode = .byWordWrapping
         tv.textContainer.maximumNumberOfLines = 0
-        tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        tv.setContentHuggingPriority(.required, for: .vertical)
         return tv
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        // 使用外层传入的实际宽度（非 bounds.width，避免初次为 0 的问题）
-        let width = containerWidth > 0 ? containerWidth : UIScreen.main.bounds.width - 72
-        let rendered = ScanViewModel.renderDots(in: rawText, availableWidth: width, fontSize: fontSize)
-        if uiView.text != rendered {
-            uiView.text = rendered
-        }
-        // 先设置宽度约束，再 sizeToFit，确保高度完整撑开
-        if uiView.frame.width != width {
-            uiView.frame.size.width = width
-        }
-        uiView.sizeToFit()
-        uiView.invalidateIntrinsicContentSize()
+        let rendered = ScanViewModel.renderDots(in: rawText)
+        if uiView.text != rendered { uiView.text = rendered }
+
+        // sizeThatFits：用固定宽度计算真实内容高度，不依赖 bounds
+        let size = uiView.sizeThatFits(CGSize(width: targetWidth, height: .greatestFiniteMagnitude))
+        guard size.height > 0, size.height != contentHeight else { return }
+        DispatchQueue.main.async { contentHeight = size.height }
     }
 }
 
