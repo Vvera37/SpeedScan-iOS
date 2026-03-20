@@ -38,9 +38,6 @@ class ScanViewModel: ObservableObject {
     }
 
     // MARK: - 核心识别（iOS 18 Vision API）
-    /// perform(on:) 接受 CGImage，不接受 UIImage。
-    /// 先用 UIGraphicsImageRenderer 将 EXIF 方向烘焙进像素（输出 orientation=.up），
-    /// 再取 cgImage 传入，orientation 参数显式传 .up，双保险。
     private func recognizeText(from image: UIImage) async throws -> OCRResult {
         guard let normalizedImage = normalizeOrientation(image),
               let cgImage = normalizedImage.cgImage else {
@@ -59,24 +56,18 @@ class ScanViewModel: ObservableObject {
         ]
         request.automaticallyDetectsLanguage = true
 
-        // orientation: .up — 与 normalizeOrientation 输出对齐
         let observations = try await request.perform(on: cgImage, orientation: .up)
 
         guard !observations.isEmpty else {
             throw OCRError.noTextFound
         }
 
-        var totalConfidence: Float = 0
-        var lines: [String] = []
-        for obs in observations {
-            if let top = obs.topCandidates(1).first {
-                lines.append(top.string)
-                totalConfidence += top.confidence
-            }
-        }
-        let text = lines.joined(separator: "\n")
-        let avgConfidence = Double(totalConfidence / Float(observations.count))
+        // 坐标重构：还原原图排版结构
+        let text = layoutText(from: observations)
         let lang = detectLanguage(text)
+
+        let totalConfidence = observations.compactMap { $0.topCandidates(1).first?.confidence }.reduce(0, +)
+        let avgConfidence = Double(totalConfidence / Float(observations.count))
 
         return OCRResult(
             originalImage: image,
@@ -85,6 +76,84 @@ class ScanViewModel: ObservableObject {
             confidence: avgConfidence,
             timestamp: Date()
         )
+    }
+
+    // MARK: - 版面还原算法（行对齐 + 列分栏）
+    /// Vision 返回归一化坐标（左下角为原点，y 向上），需翻转 y 轴
+    private func layoutText(from observations: [RecognizedTextObservation]) -> String {
+        // 噪声符号过滤
+        let noisePattern = #"^[》》\>\>\s\|\-\_\=\.\,]+$"#
+        let noiseRegex = try? NSRegularExpression(pattern: noisePattern)
+
+        struct Block {
+            let text: String
+            let minX: CGFloat
+            let midY: CGFloat  // 翻转后的 y（越大越靠上）
+        }
+
+        var blocks: [Block] = []
+        for obs in observations {
+            guard let top = obs.topCandidates(1).first else { continue }
+            let str = top.string.trimmingCharacters(in: .whitespaces)
+            guard !str.isEmpty else { continue }
+
+            // 过滤纯噪声行
+            if let regex = noiseRegex {
+                let range = NSRange(str.startIndex..., in: str)
+                if regex.firstMatch(in: str, range: range) != nil { continue }
+            }
+
+            let box = obs.boundingBox  // CGRect，归一化，左下角为(0,0)
+            // 翻转 y 轴：Vision y=0 在底部，翻转后越大越靠上（屏幕顶部）
+            let flippedMidY = 1.0 - (box.minY + box.height / 2)
+            blocks.append(Block(text: str, minX: box.minX, midY: flippedMidY))
+        }
+
+        // 按 y 排序（从上到下）
+        let sorted = blocks.sorted { $0.midY < $1.midY }
+
+        // 行聚合：y 轴差值在阈值内的归为同一行
+        let yThreshold: CGFloat = 0.018  // 约等于图片高度 1.8%
+        var rows: [[Block]] = []
+        for block in sorted {
+            if let lastRowIdx = rows.indices.last,
+               abs(block.midY - rows[lastRowIdx][0].midY) < yThreshold {
+                rows[lastRowIdx].append(block)
+            } else {
+                rows.append([block])
+            }
+        }
+
+        // 每行内按 x 排序（从左到右），决定是否需要列分栏
+        let lines: [String] = rows.map { row in
+            let rowSorted = row.sorted { $0.minX < $1.minX }
+
+            // 判断是否多列（列间距 > 0.25 认为是分栏）
+            if rowSorted.count >= 2 {
+                var mergedTokens: [String] = []
+                var prevMaxX: CGFloat = 0
+                for (i, block) in rowSorted.enumerated() {
+                    if i == 0 {
+                        mergedTokens.append(block.text)
+                        prevMaxX = block.minX + 0.3  // 估算宽度
+                    } else {
+                        let gap = block.minX - prevMaxX
+                        if gap > 0.2 {
+                            // 明显列间距，用制表符分隔
+                            mergedTokens.append("\t\(block.text)")
+                        } else {
+                            mergedTokens.append(" \(block.text)")
+                        }
+                        prevMaxX = block.minX + 0.3
+                    }
+                }
+                return mergedTokens.joined()
+            } else {
+                return rowSorted.map(\.text).joined(separator: " ")
+            }
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - PDF 处理（多页合并 OCR）
@@ -105,7 +174,6 @@ class ScanViewModel: ObservableObject {
             for i in 0..<min(pdf.pageCount, 20) {
                 guard let page = pdf.page(at: i) else { continue }
 
-                // PDF 页 → UIImage（UIGraphicsImageRenderer 输出天然 .up 方向）
                 let pageRect = page.bounds(for: .mediaBox)
                 let scale: CGFloat = 2.0
                 let renderer = UIGraphicsImageRenderer(size: CGSize(
@@ -135,8 +203,10 @@ class ScanViewModel: ObservableObject {
                 request.automaticallyDetectsLanguage = true
 
                 let observations = (try? await request.perform(on: cgImage, orientation: .up)) ?? []
+                let pageText = layoutText(from: observations)
+                allText.append(pageText)
+
                 let lines = observations.compactMap { $0.topCandidates(1).first }
-                allText.append(lines.map(\.string).joined(separator: "\n"))
                 totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
                 observationCount += lines.count
             }
@@ -158,9 +228,6 @@ class ScanViewModel: ObservableObject {
     }
 
     // MARK: - 图片方向归一化
-    /// 用 UIGraphicsImageRenderer 重绘，将 EXIF imageOrientation 烘焙进像素，
-    /// 输出的 UIImage.imageOrientation == .up，cgImage 可直接传给 Vision。
-    /// 同时限制最大尺寸 2048px，控制内存占用。
     private func normalizeOrientation(_ image: UIImage, maxDimension: CGFloat = 2048) -> UIImage? {
         let size = image.size
         var targetSize = size
