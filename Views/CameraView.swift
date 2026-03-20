@@ -204,78 +204,6 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 }
 
 // MARK: - 证件 Overlay
-struct IdCardOverlayView: View {
-    @Binding var selectedIdType: String
-
-    let idTypes = ["全部类型", "通用证件", "身份证", "户口本"]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // 白色卡片
-            VStack(spacing: 12) {
-                // 顶部标签
-                Text("A4 纸示例")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color(white: 0.92))
-                    .cornerRadius(6)
-
-                // 占位图
-                Image(systemName: "person.text.rectangle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 80)
-                    .foregroundColor(Color(white: 0.75))
-
-                // 底部安全提示
-                Text("🛡 扫描鸡保护你的证件信息安全")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(Color.white)
-            .cornerRadius(16)
-            .padding(.horizontal, 24)
-
-            // 卡片下方说明文字
-            Text("请将证件放在取景框内，保持平整")
-                .font(.system(size: 13))
-                .foregroundColor(Color(white: 0.65))
-                .multilineTextAlignment(.center)
-                .padding(.top, 12)
-                .padding(.horizontal, 24)
-
-            // 子选项胶囊
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(idTypes, id: \.self) { type in
-                        Button {
-                            selectedIdType = type
-                        } label: {
-                            Text(type)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(selectedIdType == type ? .black : .white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(selectedIdType == type ? Color.white : Color(white: 0.28))
-                                .cornerRadius(20)
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-            }
-            .padding(.top, 10)
-
-            // 立即制作按钮（暂触发普通拍照，功能后续迭代）
-            // 此按钮需要外部注入 action，通过 onMakeAction 回调
-        }
-    }
-}
-
 // MARK: - 扫描线动画
 struct ScanLineView: View {
     @State private var offsetY: CGFloat = 0
@@ -657,80 +585,129 @@ struct CameraView: View {
     }
 }
 
-// MARK: - 证件 Overlay（含「立即制作」按钮）
+// MARK: - 证件 Overlay（取景框角标 + 文字触发拍照）
 struct IdCardOverlayWithAction: View {
     @Binding var selectedIdType: String
     var onCapture: () -> Void
 
     let idTypes = ["全部类型", "通用证件", "身份证", "户口本"]
+    let cornerSize: CGFloat = 22
+    let cornerWidth: CGFloat = 3
 
     var body: some View {
-        VStack(spacing: 12) {
-            // 白色卡片
-            VStack(spacing: 12) {
-                Text("A4 纸示例")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color(white: 0.92))
-                    .cornerRadius(6)
+        VStack(spacing: 14) {
+            // 取景框（带四角 L 形绿色角标）
+            ZStack {
+                // 半透明遮罩提示区域
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    .background(Color.white.opacity(0.04).cornerRadius(8))
+                    .frame(width: 280, height: 176)
 
-                Image(systemName: "person.text.rectangle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 80)
-                    .foregroundColor(Color(white: 0.75))
+                // 四个角标
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let h = geo.size.height
+                    ZStack {
+                        // 左上
+                        CornerMark(corner: .topLeft)
+                        // 右上
+                        CornerMark(corner: .topRight)
+                        // 左下
+                        CornerMark(corner: .bottomLeft)
+                        // 右下
+                        CornerMark(corner: .bottomRight)
+                    }
+                    .frame(width: w, height: h)
+                }
+                .frame(width: 280, height: 176)
 
-                Text("🛡 扫描鸡保护你的证件信息安全")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
+                // 中间提示
+                VStack(spacing: 6) {
+                    Image(systemName: "creditcard")
+                        .font(.system(size: 28))
+                        .foregroundColor(Color(white: 0.55))
+                    Text("将证件放入框内")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(white: 0.55))
+                }
             }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(Color.white)
-            .cornerRadius(16)
-            .padding(.horizontal, 24)
+            .frame(width: 280, height: 176)
 
-            // 说明
-            Text("请将证件放在取景框内，保持平整")
-                .font(.system(size: 13))
-                .foregroundColor(Color(white: 0.65))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
+            // 安全提示
+            HStack(spacing: 4) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.themeGreen.opacity(0.8))
+                Text("扫描鸡不存储任何证件信息")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(white: 0.55))
+            }
 
-            // 子选项胶囊
+            // 证件类型胶囊
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(idTypes, id: \.self) { type in
-                        Button {
-                            selectedIdType = type
-                        } label: {
-                            Text(type)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(selectedIdType == type ? .black : .white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(selectedIdType == type ? Color.white : Color(white: 0.28))
-                                .cornerRadius(20)
-                        }
+                        Text(type)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(selectedIdType == type ? .black : .white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(selectedIdType == type ? Color.white : Color(white: 0.28))
+                            .cornerRadius(20)
+                            .onTapGesture { selectedIdType = type }
                     }
                 }
                 .padding(.horizontal, 24)
             }
 
-            // 立即制作
-            Button(action: onCapture) {
-                Text("立即制作")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.themeGreen)
-                    .cornerRadius(26)
+            // 「立即制作」文字触发（不用 Button，避免 hit testing 竞争）
+            Text("立即制作")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(Color.themeGreen)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 48)
+                .background(Color.themeGreen.opacity(0.15))
+                .cornerRadius(24)
+                .onTapGesture { onCapture() }
+        }
+    }
+}
+
+// MARK: - 单角 L 形角标
+private enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
+
+private struct CornerMark: View {
+    let corner: Corner
+    let size: CGFloat = 22
+    let lineWidth: CGFloat = 3
+    let color = Color.themeGreen
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            Path { path in
+                switch corner {
+                case .topLeft:
+                    path.move(to: CGPoint(x: 0, y: size))
+                    path.addLine(to: CGPoint(x: 0, y: 0))
+                    path.addLine(to: CGPoint(x: size, y: 0))
+                case .topRight:
+                    path.move(to: CGPoint(x: w - size, y: 0))
+                    path.addLine(to: CGPoint(x: w, y: 0))
+                    path.addLine(to: CGPoint(x: w, y: size))
+                case .bottomLeft:
+                    path.move(to: CGPoint(x: 0, y: h - size))
+                    path.addLine(to: CGPoint(x: 0, y: h))
+                    path.addLine(to: CGPoint(x: size, y: h))
+                case .bottomRight:
+                    path.move(to: CGPoint(x: w - size, y: h))
+                    path.addLine(to: CGPoint(x: w, y: h))
+                    path.addLine(to: CGPoint(x: w, y: h - size))
+                }
             }
-            .padding(.horizontal, 24)
+            .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
         }
     }
 }
