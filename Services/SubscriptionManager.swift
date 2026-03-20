@@ -153,4 +153,5 @@ class SubscriptionManager: ObservableObject {
     var yearlyProduct: Product? {
         products.first { $0.id == Self.yearlyProductID }
     }
+
 }
