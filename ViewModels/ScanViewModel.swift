@@ -181,31 +181,10 @@ class ScanViewModel: ObservableObject {
         return outputLines.joined(separator: "\n")
     }
 
-    /// 将 layoutText 输出的占位符转换为实际点号，供 UI 层在已知屏幕宽度时调用
-    /// - Parameter text: 含 §GAP:x.xxx§ 占位符的原始文本
-    /// - Parameter availableWidth: 可用宽度（点，UITextView 的实际宽度）
-    /// - Parameter fontSize: 字体大小（等宽字体每字符宽度 ≈ fontSize * 0.6）
-    static func renderDots(in text: String, availableWidth: CGFloat, fontSize: CGFloat) -> String {
-        let charWidth = fontSize * 0.6  // 等宽字体经验值
-        let totalChars = Int(availableWidth / charWidth)
-
-        // 按行处理，每行独立计算点号数
-        let lines = text.components(separatedBy: "\n")
-        let rendered = lines.map { line -> String in
-            guard line.contains("§GAP:") else { return line }
-
-            // 计算该行去掉占位符后的纯文本字符数
-            let stripped = line.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: "", options: .regularExpression)
-            let usedChars = stripped.count
-            let remaining = totalChars - usedChars - 2  // 留 2 个空格边距
-
-            // 动态点号数：剩余空间的 80%，最少 3 个，最多 20 个
-            let dotCount = min(20, max(3, Int(CGFloat(remaining) * 0.8)))
-            let dots = " " + String(repeating: ".", count: dotCount) + " "
-
-            return line.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: dots, options: .regularExpression)
-        }
-        return rendered.joined(separator: "\n")
+    /// 将 layoutText 输出的占位符转换为点号，固定 5 个，任何屏幕都不换行
+    static func renderDots(in text: String, availableWidth: CGFloat = 0, fontSize: CGFloat = 14) -> String {
+        let separator = " ..... "  // 固定 5 个点，视觉引导够用，不撑破任何屏幕
+        return text.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: separator, options: .regularExpression)
     }
 
     // MARK: - PDF 处理（多页合并 OCR）
