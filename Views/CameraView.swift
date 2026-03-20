@@ -333,28 +333,30 @@ struct CameraView: View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
+            // 相机预览 + 顶部工具栏，铺满全屏
             VStack(spacing: 0) {
-                // ── 1. 顶部工具栏 ──────────────────────────────────────
                 topToolbar
-
-                // ── 2. 相机取景区 ──────────────────────────────────────
                 cameraArea
+            }
 
-                // ── 3. 模式说明区 ──────────────────────────────────────
+            // 底部区域固定贴底，不参与相机区域的高度分配
+            VStack(spacing: 0) {
+                // 模式说明区
                 if let title = selectedMode.descTitle {
                     modeDescView(title: title, subtitle: selectedMode.descSubtitle)
                 }
 
-                // ── 4. 单页/多页胶囊 ────────────────────────────────────
+                // 单页/多页胶囊
                 if selectedMode.showPageCapsule {
                     PageModeCapsule(isMultiPage: $isMultiPage)
-                        .padding(.top, 16)
+                        .padding(.top, 12)
                         .padding(.bottom, 4)
                 }
 
-                // ── 5. 底部区域：快门 + Tab + 辅助图标 ─────────────────
+                // 快门 + Tab + 辅助图标
                 bottomArea
             }
+            .zIndex(20)  // 始终在相机预览上层
         }
         .onAppear {
             checkCameraPermission()

@@ -233,15 +233,15 @@ struct LoginView: View {
             Text(errorMessage)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showCodeInput)
-        // 右上角关闭按钮（仅 sheet 模式）
-        .toolbar {
+        // 右上角关闭按钮：用 overlay 替代 toolbar，真机点击更可靠
+        .overlay(alignment: .topTrailing) {
             if isModal {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(Color(.systemGray3))
+                        .padding(16)
+                        .contentShape(Rectangle())  // 扩大点击区域到 60×60
                 }
             }
         }
