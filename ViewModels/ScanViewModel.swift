@@ -79,80 +79,69 @@ class ScanViewModel: ObservableObject {
     }
 
     // MARK: - 版面还原算法（行对齐 + 列分栏）
-    /// Vision 返回归一化坐标（左下角为原点，y 向上），需翻转 y 轴
     private func layoutText(from observations: [RecognizedTextObservation]) -> String {
-        // 噪声符号过滤
-        let noisePattern = #"^[》》\>\>\s\|\-\_\=\.\,]+$"#
-        let noiseRegex = try? NSRegularExpression(pattern: noisePattern)
+        // ── 噪声过滤：纯装饰性符号整行过滤 ──────────────────────────
+        let noiseRegex = try? NSRegularExpression(pattern: #"^[\s\>\>\》\〉\|\-\_\=\.\,\*\~\#\@\!]+$"#)
 
         struct Block {
             let text: String
             let minX: CGFloat
-            let midY: CGFloat  // 翻转后的 y（越大越靠上）
+            let maxX: CGFloat
+            let midY: CGFloat  // Vision y 原点在底部，midY 越大越靠上
         }
 
+        // ── 构建文字块 ────────────────────────────────────────────────
         var blocks: [Block] = []
         for obs in observations {
             guard let top = obs.topCandidates(1).first else { continue }
-            let str = top.string.trimmingCharacters(in: .whitespaces)
+            var str = top.string.trimmingCharacters(in: .whitespaces)
             guard !str.isEmpty else { continue }
 
-            // 过滤纯噪声行
-            if let regex = noiseRegex {
-                let range = NSRange(str.startIndex..., in: str)
-                if regex.firstMatch(in: str, range: range) != nil { continue }
-            }
+            // 噪声行过滤
+            if let re = noiseRegex, re.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) != nil { continue }
 
-            // iOS 18 Vision: boundingBox 是 NormalizedRect，先转 CGRect 再取坐标
+            // 行内噪声清理：去除行首行尾的连续 > / 》
+            str = str.replacingOccurrences(of: #"^[\>\》\〉]+"#, with: "", options: .regularExpression)
+            str = str.replacingOccurrences(of: #"[\>\》\〉]+$"#, with: "", options: .regularExpression)
+            str = str.trimmingCharacters(in: .whitespaces)
+            guard !str.isEmpty else { continue }
+
+            // iOS 18: boundingBox 是 NormalizedRect，须 .cgRect 才能取 CGRect 属性
             let rect = obs.boundingBox.cgRect
-            // Vision 坐标原点在左下角，y 轴向上
-            // midY 越大越靠上，排序用 > 从大到小 = 从上到下
             let midY = rect.minY + rect.height / 2
-            blocks.append(Block(text: str, minX: rect.minX, midY: midY))
+            blocks.append(Block(text: str, minX: rect.minX, maxX: rect.maxX, midY: midY))
         }
 
-        // Vision y 原点在底部，midY 大 = 靠上，从大到小排 = 从上到下
+        // ── 行聚合：Vision y 原点在底部，大 → 小 = 从上到下 ─────────
         let sorted = blocks.sorted { $0.midY > $1.midY }
-
-        // 行聚合：y 轴差值在阈值内归为同一行
-        let yThreshold: CGFloat = 0.02  // 归一化坐标 2%，容错同行对齐
+        let yThreshold: CGFloat = 0.01  // 1% 归一化，更严格的行对齐
         var rows: [[Block]] = []
         for block in sorted {
-            if let lastRowIdx = rows.indices.last,
-               abs(block.midY - rows[lastRowIdx][0].midY) < yThreshold {
-                rows[lastRowIdx].append(block)
+            if let last = rows.indices.last,
+               abs(block.midY - rows[last][0].midY) < yThreshold {
+                rows[last].append(block)
             } else {
                 rows.append([block])
             }
         }
 
-        // 每行内按 x 排序（从左到右），决定是否需要列分栏
+        // ── 行内重建：按 minX 排序，大间距插制表符 ───────────────────
+        // 列间距阈值：两块之间空白 > 0.1（归一化）认为是分栏
+        let columnGapThreshold: CGFloat = 0.1
         let lines: [String] = rows.map { row in
             let rowSorted = row.sorted { $0.minX < $1.minX }
-
-            // 判断是否多列（列间距 > 0.25 认为是分栏）
-            if rowSorted.count >= 2 {
-                var mergedTokens: [String] = []
-                var prevMaxX: CGFloat = 0
-                for (i, block) in rowSorted.enumerated() {
-                    if i == 0 {
-                        mergedTokens.append(block.text)
-                        prevMaxX = block.minX + 0.3  // 估算宽度
-                    } else {
-                        let gap = block.minX - prevMaxX
-                        if gap > 0.2 {
-                            // 明显列间距，用制表符分隔
-                            mergedTokens.append("\t\(block.text)")
-                        } else {
-                            mergedTokens.append(" \(block.text)")
-                        }
-                        prevMaxX = block.minX + 0.3
-                    }
+            var result = ""
+            var prevMaxX: CGFloat = 0
+            for (i, block) in rowSorted.enumerated() {
+                if i == 0 {
+                    result += block.text
+                } else {
+                    let gap = block.minX - prevMaxX
+                    result += gap > columnGapThreshold ? "\t\(block.text)" : " \(block.text)"
                 }
-                return mergedTokens.joined()
-            } else {
-                return rowSorted.map(\.text).joined(separator: " ")
+                prevMaxX = block.maxX
             }
+            return result
         }
 
         return lines.joined(separator: "\n")

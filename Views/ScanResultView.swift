@@ -319,7 +319,7 @@ struct TranslateToggleButton: View {
     }
 }
 
-// MARK: - 支持长按选择的文本（高度自适应，不截断）
+// MARK: - 支持长按选择的文本（高度完全撑开，不截断，外层 ScrollView 接管滚动）
 struct SelectableTextView: UIViewRepresentable {
     let text: String
 
@@ -327,20 +327,26 @@ struct SelectableTextView: UIViewRepresentable {
         let tv = UITextView()
         tv.isEditable = false
         tv.isSelectable = true
-        tv.isScrollEnabled = false          // 禁用内部滚动，高度完全撑开
+        tv.isScrollEnabled = false          // 禁止内部滚动，高度随内容撑开
         tv.backgroundColor = .clear
-        tv.font = UIFont.systemFont(ofSize: 15, weight: .regular)
+        tv.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)  // 等宽字体，制表符对齐更好看
         tv.textColor = UIColor.label
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
+        tv.textContainer.lineBreakMode = .byWordWrapping
+        tv.textContainer.maximumNumberOfLines = 0   // 不限行数
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         tv.setContentHuggingPriority(.required, for: .vertical)
         return tv
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        uiView.text = text
+        if uiView.text != text {
+            uiView.text = text
+        }
+        // 强制重新计算高度
         uiView.invalidateIntrinsicContentSize()
+        uiView.setNeedsLayout()
     }
 }
 
