@@ -111,10 +111,15 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        if session.isRunning {
-            DispatchQueue.global(qos: .background).async { [weak self] in
-                self?.session.stopRunning()
-            }
+        stopSession()
+    }
+
+    /// 显式停止 session，释放相机资源。
+    /// SwiftUI dismiss 时由 CameraView.onDismiss 主动调用，防止 OOM。
+    func stopSession() {
+        guard session.isRunning else { return }
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.session.stopRunning()
         }
     }
 
@@ -436,12 +441,18 @@ struct CameraView: View {
         }
     }
 
+    // MARK: 安全关闭（主动释放相机资源，防止 OOM SIGTERM）
+    private func dismissSafely() {
+        cameraVC?.stopSession()
+        onDismiss()
+    }
+
     // MARK: 顶部工具栏
     @ViewBuilder
     private var topToolbar: some View {
         HStack {
             // 关闭
-            Button { onDismiss() } label: {
+            Button { dismissSafely() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
@@ -509,7 +520,7 @@ struct CameraView: View {
                         cameraVC = vc
                         vc.onCapture = { img in
                             capturedImage = img
-                            onDismiss()
+                            dismissSafely()
                         }
                         vc.flashMode = flashMode
                     })
@@ -640,7 +651,7 @@ struct CameraView: View {
             .sheet(isPresented: $showAlbumPicker) {
                 ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
                     .onDisappear {
-                        if capturedImage != nil { onDismiss() }
+                        if capturedImage != nil { dismissSafely() }
                     }
             }
     }
