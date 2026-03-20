@@ -141,9 +141,9 @@ class ScanViewModel: ObservableObject {
         }
         let paragraphBreakThreshold = avgLineHeight * 1.5  // 超过 1.5 倍行高视为段落间距
 
-        // ── 行内重建：按 minX 排序，大间距插填充点 ──────────────────
+        // ── 行内重建：按 minX 排序，大间距用 §GAP:0.xx§ 占位符标记 ──
+        // 占位符由 UI 层根据实际屏幕宽度渲染为合适数量的点号，避免小屏换行
         let columnGapThreshold: CGFloat = 0.1  // 归一化间距 > 10% 认为是分栏
-        let dotFillWidth: CGFloat = 0.012       // 每个点号约占 1.2% 宽度
 
         var outputLines: [String] = []
         for (rowIdx, row) in rows.enumerated() {
@@ -151,9 +151,8 @@ class ScanViewModel: ObservableObject {
             if rowIdx > 0 {
                 let prevMidY = rows[rowIdx - 1][0].midY
                 let currMidY = row[0].midY
-                let gap = prevMidY - currMidY  // 正值
-                if gap > paragraphBreakThreshold {
-                    outputLines.append("")  // 插入空行，产生段落感
+                if prevMidY - currMidY > paragraphBreakThreshold {
+                    outputLines.append("")
                 }
             }
 
@@ -167,10 +166,9 @@ class ScanViewModel: ObservableObject {
                 } else {
                     let gap = block.minX - prevMaxX
                     if gap > columnGapThreshold {
-                        // 大间距：用点号填充引导视线（类似目录引导线）
-                        let dotCount = max(1, Int(gap / dotFillWidth))
-                        let dots = " " + String(repeating: ".", count: min(dotCount, 30)) + " "
-                        result += "\(dots)\(block.text)"
+                        // 用占位符记录间距比例，UI 层动态计算点号数
+                        let gapStr = String(format: "%.3f", gap)
+                        result += "§GAP:\(gapStr)§\(block.text)"
                     } else {
                         result += " \(block.text)"
                     }
@@ -181,6 +179,33 @@ class ScanViewModel: ObservableObject {
         }
 
         return outputLines.joined(separator: "\n")
+    }
+
+    /// 将 layoutText 输出的占位符转换为实际点号，供 UI 层在已知屏幕宽度时调用
+    /// - Parameter text: 含 §GAP:x.xxx§ 占位符的原始文本
+    /// - Parameter availableWidth: 可用宽度（点，UITextView 的实际宽度）
+    /// - Parameter fontSize: 字体大小（等宽字体每字符宽度 ≈ fontSize * 0.6）
+    static func renderDots(in text: String, availableWidth: CGFloat, fontSize: CGFloat) -> String {
+        let charWidth = fontSize * 0.6  // 等宽字体经验值
+        let totalChars = Int(availableWidth / charWidth)
+
+        // 按行处理，每行独立计算点号数
+        let lines = text.components(separatedBy: "\n")
+        let rendered = lines.map { line -> String in
+            guard line.contains("§GAP:") else { return line }
+
+            // 计算该行去掉占位符后的纯文本字符数
+            let stripped = line.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: "", options: .regularExpression)
+            let usedChars = stripped.count
+            let remaining = totalChars - usedChars - 2  // 留 2 个空格边距
+
+            // 动态点号数：剩余空间的 80%，最少 3 个，最多 20 个
+            let dotCount = min(20, max(3, Int(CGFloat(remaining) * 0.8)))
+            let dots = " " + String(repeating: ".", count: dotCount) + " "
+
+            return line.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: dots, options: .regularExpression)
+        }
+        return rendered.joined(separator: "\n")
     }
 
     // MARK: - PDF 处理（多页合并 OCR）

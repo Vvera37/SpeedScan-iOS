@@ -74,7 +74,7 @@ struct ScanResultView: View {
                             Divider().padding(.horizontal, 16)
 
                             // 文字内容（可长按选择）
-                            SelectableTextView(text: displayText)
+                            SelectableTextView(rawText: displayText)
                                 .padding(16)
                         }
                         .background(Color.white)
@@ -100,7 +100,10 @@ struct ScanResultView: View {
                 // ── 底部固定操作栏（不随 ScrollView 滚动）─────────────
                 BottomActionBar(
                     onCopy: {
-                        UIPasteboard.general.string = displayText
+                        // 复制时用屏幕宽度渲染点号，去掉占位符
+                        let copyWidth = UIScreen.main.bounds.width - 72
+                        let cleanText = ScanViewModel.renderDots(in: displayText, availableWidth: copyWidth, fontSize: 14)
+                        UIPasteboard.general.string = cleanText
                         withAnimation { copySuccess = true }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                             withAnimation { copySuccess = false }
@@ -328,32 +331,35 @@ struct TranslateToggleButton: View {
     }
 }
 
-// MARK: - 支持长按选择的文本（高度完全撑开，不截断，外层 ScrollView 接管滚动）
+// MARK: - 支持长按选择的文本（高度完全撑开，点号根据实际宽度动态渲染）
 struct SelectableTextView: UIViewRepresentable {
-    let text: String
+    let rawText: String   // 含 §GAP:x.xxx§ 占位符的原始文本
+    private let fontSize: CGFloat = 14
 
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
         tv.isEditable = false
         tv.isSelectable = true
-        tv.isScrollEnabled = false          // 禁止内部滚动，高度随内容撑开
+        tv.isScrollEnabled = false
         tv.backgroundColor = .clear
-        tv.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)  // 等宽字体，制表符对齐更好看
+        tv.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         tv.textColor = UIColor.label
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainer.lineBreakMode = .byWordWrapping
-        tv.textContainer.maximumNumberOfLines = 0   // 不限行数
+        tv.textContainer.maximumNumberOfLines = 0
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         tv.setContentHuggingPriority(.required, for: .vertical)
         return tv
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
+        // 用实际渲染宽度（已知）动态计算点号数
+        let width = uiView.bounds.width > 0 ? uiView.bounds.width : UIScreen.main.bounds.width - 72
+        let rendered = ScanViewModel.renderDots(in: rawText, availableWidth: width, fontSize: fontSize)
+        if uiView.text != rendered {
+            uiView.text = rendered
         }
-        // 强制重新计算高度
         uiView.invalidateIntrinsicContentSize()
         uiView.setNeedsLayout()
     }
