@@ -103,10 +103,10 @@ class ScanViewModel: ObservableObject {
                 if regex.firstMatch(in: str, range: range) != nil { continue }
             }
 
-            let box = obs.boundingBox  // CGRect，归一化，左下角为(0,0)
+            let box = obs.boundingBox  // NormalizedRect，归一化，左下角为(0,0)
             // 翻转 y 轴：Vision y=0 在底部，翻转后越大越靠上（屏幕顶部）
-            let flippedMidY = 1.0 - (box.minY + box.height / 2)
-            blocks.append(Block(text: str, minX: box.minX, midY: flippedMidY))
+            let flippedMidY = 1.0 - (box.y + box.height / 2)
+            blocks.append(Block(text: str, minX: box.x, midY: flippedMidY))
         }
 
         // 按 y 排序（从上到下）
