@@ -1,6 +1,6 @@
 //
 // ScanResultView.swift
-// 识别结果界面
+// 识别结果界面 — LazyVStack PDF分片 + 截断修复
 //
 
 import SwiftUI
@@ -28,61 +28,74 @@ struct ScanResultView: View {
     @State private var isTranslating = false
     @State private var showTranslationSheet = false
 
-    // 当前展示的文字（原文 or 译文）
     private var displayText: String {
         isTranslated && !translatedText.isEmpty ? translatedText : result.recognizedText
     }
 
-    // 是否包含非简体中文内容（显示翻译按钮的条件）
-    private var hasNonSimplifiedChinese: Bool {
-        !result.isChinese
-    }
+    private var hasNonSimplifiedChinese: Bool { !result.isChinese }
+    private var isPDF: Bool { !result.pages.isEmpty }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+
                 // ── 可滚动内容区 ──────────────────────────────────────
                 ScrollView {
-                    VStack(spacing: 16) {
+                    LazyVStack(spacing: 16, pinnedViews: []) {
 
                         // 顶部 Header
                         ThumbnailHeaderView(image: result.originalImage)
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
 
-                        // 文字内容卡片
-                        VStack(alignment: .leading, spacing: 0) {
-                            // 标题栏
-                            HStack {
-                                Text("识别内容")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                if isTranslated {
-                                    Label("已翻译", systemImage: "checkmark.circle.fill")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.green)
-                                } else {
-                                    Text("\(result.recognizedText.count) 字")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.secondary)
-                                }
+                        if isPDF {
+                            // ── PDF 多页分片渲染 ────────────────────────
+                            ForEach(result.pages) { page in
+                                PageCell(page: page, totalPages: result.pages.count)
+                                    .padding(.horizontal, 20)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                        } else {
+                            // ── 单图单块渲染 ───────────────────────────
+                            VStack(alignment: .leading, spacing: 0) {
+                                HStack {
+                                    Text("识别内容")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    if isTranslated {
+                                        Label("已翻译", systemImage: "checkmark.circle.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.green)
+                                    } else {
+                                        Text("\(result.recognizedText.count) 字")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
 
-                            Divider().padding(.horizontal, 16)
+                                Divider().padding(.horizontal, 16)
 
-                            // 文字内容（可长按选择）
-                            SelectableTextView(rawText: displayText)
+                                // 关键修复：GeometryReader 传实际宽度，避免初次布局宽度为 0
+                                GeometryReader { geo in
+                                    SelectableTextView(
+                                        rawText: displayText,
+                                        containerWidth: geo.size.width
+                                    )
+                                }
                                 .padding(16)
+                                // frame minHeight 让 GeometryReader 有初始高度，
+                                // 实际高度由 SelectableTextView 内部撑开
+                                .frame(minHeight: 120)
+                            }
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                            .padding(.horizontal, 20)
                         }
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                        .padding(.horizontal, 20)
 
-                        // 翻译按钮（有非中文内容时显示）
+                        // 翻译按钮（非简体中文时显示）
                         if hasNonSimplifiedChinese {
                             TranslateToggleButton(
                                 isTranslated: isTranslated,
@@ -92,17 +105,17 @@ struct ScanResultView: View {
                             .padding(.horizontal, 20)
                         }
 
-                        // 底部留白（给底部操作栏让位）
                         Spacer(minLength: 100)
                     }
                 }
 
-                // ── 底部固定操作栏（不随 ScrollView 滚动）─────────────
+                // ── 底部固定操作栏 ────────────────────────────────────
                 BottomActionBar(
                     onCopy: {
-                        // 复制时用屏幕宽度渲染点号，去掉占位符
                         let copyWidth = UIScreen.main.bounds.width - 72
-                        let cleanText = ScanViewModel.renderDots(in: displayText, availableWidth: copyWidth, fontSize: 14)
+                        let cleanText = ScanViewModel.renderDots(
+                            in: displayText, availableWidth: copyWidth, fontSize: 14
+                        )
                         UIPasteboard.general.string = cleanText
                         withAnimation { copySuccess = true }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -116,8 +129,7 @@ struct ScanResultView: View {
             }
             .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .sheet(isPresented: $showLoginSheet) {
-                LoginView(isModal: true)
-                    .environmentObject(appState)
+                LoginView(isModal: true).environmentObject(appState)
             }
             .translationTask(translationConfig()) { session in
                 await performTranslation(session: session)
@@ -150,19 +162,10 @@ struct ScanResultView: View {
         }
     }
 
-    // MARK: - 翻译逻辑
+    // MARK: - 翻译
     private func handleTranslate() {
-        if isTranslated {
-            // 切回原文
-            isTranslated = false
-            return
-        }
-        if !translatedText.isEmpty {
-            // 已有缓存译文，直接切换
-            isTranslated = true
-            return
-        }
-        // 模拟器不支持 Apple Translation，给出明确提示
+        if isTranslated { isTranslated = false; return }
+        if !translatedText.isEmpty { isTranslated = true; return }
         #if targetEnvironment(simulator)
         viewModel.alertItem = AlertItem(
             title: Text("请在真机上使用"),
@@ -170,20 +173,14 @@ struct ScanResultView: View {
             dismissButton: .default(Text("知道了"))
         )
         #else
-        // 触发 Apple Translation
         isTranslating = true
         showTranslationSheet = true
         #endif
     }
 
-    @State private var translationTrigger = false
-
     private func translationConfig() -> TranslationSession.Configuration? {
         guard showTranslationSheet else { return nil }
-        return TranslationSession.Configuration(
-            source: nil,  // 自动检测
-            target: Locale.Language(identifier: "zh-Hans")
-        )
+        return TranslationSession.Configuration(source: nil, target: Locale.Language(identifier: "zh-Hans"))
     }
 
     private func performTranslation(session: TranslationSession) async {
@@ -210,10 +207,7 @@ struct ScanResultView: View {
 
     // MARK: - 导出 Word
     private func exportWord() {
-        guard appState.requireLoginForExport() else {
-            showLoginSheet = true
-            return
-        }
+        guard appState.requireLoginForExport() else { showLoginSheet = true; return }
         guard !isExporting else { return }
         isExporting = true
 
@@ -236,25 +230,19 @@ struct ScanResultView: View {
                     )
                     return
                 }
-
                 let preview = String(text.prefix(200))
                 let fileSize = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
-                let record = ScanRecord(
-                    wordFilePath: path,
-                    wordFileSize: fileSize,
-                    textPreview: preview,
-                    detectedLanguage: lang
-                )
-                modelContext.insert(record)
+                modelContext.insert(ScanRecord(
+                    wordFilePath: path, wordFileSize: fileSize,
+                    textPreview: preview, detectedLanguage: lang
+                ))
                 try? modelContext.save()
-
                 exportedFileURL = URL(fileURLWithPath: path)
                 shareFile(url: URL(fileURLWithPath: path))
             }
         }
     }
 
-    // MARK: - 分享文件
     private func shareFile(url: URL) {
         let ac = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -266,29 +254,55 @@ struct ScanResultView: View {
     }
 }
 
+// MARK: - PDF 单页 Cell
+struct PageCell: View {
+    let page: ScanPage
+    let totalPages: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 页码条
+            HStack {
+                Text("第 \(page.id) 页")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(page.id) / \(totalPages)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color(UIColor.systemGroupedBackground))
+
+            // 页面内容 — GeometryReader 传实际宽度
+            GeometryReader { geo in
+                SelectableTextView(rawText: page.content, containerWidth: geo.size.width)
+            }
+            .padding(14)
+            .frame(minHeight: 80)
+        }
+        .background(Color.white)
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 3)
+    }
+}
+
 // MARK: - 缩略图 Header
 struct ThumbnailHeaderView: View {
     let image: UIImage
-
     var body: some View {
         HStack(spacing: 16) {
             Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
+                .resizable().scaledToFill()
                 .frame(width: 80, height: 80)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
-
             VStack(alignment: .leading, spacing: 8) {
-                Text("识别完成")
-                    .font(.system(size: 17, weight: .semibold))
+                Text("识别完成").font(.system(size: 17, weight: .semibold))
                 HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 15))
-                    Text("文字已提取，可复制或导出")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(.green).font(.system(size: 15))
+                    Text("文字已提取，可复制或导出").font(.system(size: 13)).foregroundColor(.secondary)
                 }
             }
             Spacer()
@@ -305,18 +319,14 @@ struct TranslateToggleButton: View {
     let isTranslated: Bool
     let isTranslating: Bool
     let action: () -> Void
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if isTranslating {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#007AFF")))
-                        .scaleEffect(0.85)
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#007AFF"))).scaleEffect(0.85)
                     Text("翻译中…")
                 } else {
-                    Image(systemName: isTranslated ? "arrow.uturn.backward.circle" : "character.bubble")
-                        .font(.system(size: 15))
+                    Image(systemName: isTranslated ? "arrow.uturn.backward.circle" : "character.bubble").font(.system(size: 15))
                     Text(isTranslated ? "切回原来的语言" : "全部翻译成简体中文")
                 }
             }
@@ -331,9 +341,12 @@ struct TranslateToggleButton: View {
     }
 }
 
-// MARK: - 支持长按选择的文本（高度完全撑开，点号根据实际宽度动态渲染）
+// MARK: - SelectableTextView（高度截断终极修复）
+// 用 containerWidth 参数直接传入外层 GeometryReader 测量的宽度，
+// 避免 UITextView.bounds.width 初次为 0 导致 intrinsicContentSize 计算错误。
 struct SelectableTextView: UIViewRepresentable {
-    let rawText: String   // 含 §GAP:x.xxx§ 占位符的原始文本
+    let rawText: String
+    let containerWidth: CGFloat
     private let fontSize: CGFloat = 14
 
     func makeUIView(context: Context) -> UITextView {
@@ -354,14 +367,18 @@ struct SelectableTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        // 用实际渲染宽度（已知）动态计算点号数
-        let width = uiView.bounds.width > 0 ? uiView.bounds.width : UIScreen.main.bounds.width - 72
+        // 使用外层传入的实际宽度（非 bounds.width，避免初次为 0 的问题）
+        let width = containerWidth > 0 ? containerWidth : UIScreen.main.bounds.width - 72
         let rendered = ScanViewModel.renderDots(in: rawText, availableWidth: width, fontSize: fontSize)
         if uiView.text != rendered {
             uiView.text = rendered
         }
+        // 先设置宽度约束，再 sizeToFit，确保高度完整撑开
+        if uiView.frame.width != width {
+            uiView.frame.size.width = width
+        }
+        uiView.sizeToFit()
         uiView.invalidateIntrinsicContentSize()
-        uiView.setNeedsLayout()
     }
 }
 
@@ -376,14 +393,11 @@ struct BottomActionBar: View {
         HStack(spacing: 12) {
             Button(action: onCopy) {
                 HStack(spacing: 8) {
-                    Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: 16))
-                    Text(copySuccess ? "已复制" : "复制全文")
-                        .font(.system(size: 15, weight: .medium))
+                    Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc").font(.system(size: 16))
+                    Text(copySuccess ? "已复制" : "复制全文").font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(Color(hex: "#007AFF"))
-                .padding(.vertical, 14)
-                .padding(.horizontal, 16)
+                .padding(.vertical, 14).padding(.horizontal, 16)
                 .background(Color(hex: "#007AFF").opacity(0.1))
                 .cornerRadius(12)
             }
@@ -392,37 +406,27 @@ struct BottomActionBar: View {
             Button(action: onExportWord) {
                 HStack(spacing: 8) {
                     if isExporting {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(0.8)
                     } else {
-                        Image(systemName: "doc.text")
-                            .font(.system(size: 16))
+                        Image(systemName: "doc.text").font(.system(size: 16))
                     }
-                    Text(isExporting ? "生成中…" : "导出 Word")
-                        .font(.system(size: 15, weight: .semibold))
+                    Text(isExporting ? "生成中…" : "导出 Word").font(.system(size: 15, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
                 .background(
                     isExporting ? AnyView(Color.gray) : AnyView(
-                        LinearGradient(
-                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
-                            startPoint: .leading, endPoint: .trailing
-                        )
+                        LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                       startPoint: .leading, endPoint: .trailing)
                     )
                 )
                 .cornerRadius(12)
             }
             .disabled(isExporting)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(
-            Color.white
-                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4)
-        )
+        .padding(.horizontal, 20).padding(.vertical, 14)
+        .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
     }
 }
 

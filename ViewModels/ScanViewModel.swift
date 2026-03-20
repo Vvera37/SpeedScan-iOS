@@ -57,15 +57,10 @@ class ScanViewModel: ObservableObject {
         request.automaticallyDetectsLanguage = true
 
         let observations = try await request.perform(on: cgImage, orientation: .up)
+        guard !observations.isEmpty else { throw OCRError.noTextFound }
 
-        guard !observations.isEmpty else {
-            throw OCRError.noTextFound
-        }
-
-        // 坐标重构：还原原图排版结构
         let text = layoutText(from: observations)
         let lang = detectLanguage(text)
-
         let totalConfidence = observations.compactMap { $0.topCandidates(1).first?.confidence }.reduce(0, +)
         let avgConfidence = Double(totalConfidence / Float(observations.count))
 
@@ -74,47 +69,43 @@ class ScanViewModel: ObservableObject {
             recognizedText: text,
             detectedLanguage: lang,
             confidence: avgConfidence,
-            timestamp: Date()
+            timestamp: Date(),
+            pages: []   // 单图，pages 为空
         )
     }
 
     // MARK: - 版面还原算法（行对齐 + 列分栏）
     private func layoutText(from observations: [RecognizedTextObservation]) -> String {
-        // ── 噪声过滤：纯装饰性符号整行过滤 ──────────────────────────
         let noiseRegex = try? NSRegularExpression(pattern: #"^[\s\>\>\》\〉\|\-\_\=\.\,\*\~\#\@\!]+$"#)
 
         struct Block {
             let text: String
             let minX: CGFloat
             let maxX: CGFloat
-            let midY: CGFloat  // Vision y 原点在底部，midY 越大越靠上
+            let midY: CGFloat
         }
 
-        // ── 构建文字块 ────────────────────────────────────────────────
         var blocks: [Block] = []
         for obs in observations {
             guard let top = obs.topCandidates(1).first else { continue }
             var str = top.string.trimmingCharacters(in: .whitespaces)
             guard !str.isEmpty else { continue }
 
-            // 噪声行过滤
-            if let re = noiseRegex, re.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) != nil { continue }
+            if let re = noiseRegex,
+               re.firstMatch(in: str, range: NSRange(str.startIndex..., in: str)) != nil { continue }
 
-            // 行内噪声清理：去除行首行尾的连续 > / 》
             str = str.replacingOccurrences(of: #"^[\>\》\〉]+"#, with: "", options: .regularExpression)
             str = str.replacingOccurrences(of: #"[\>\》\〉]+$"#, with: "", options: .regularExpression)
             str = str.trimmingCharacters(in: .whitespaces)
             guard !str.isEmpty else { continue }
 
-            // iOS 18: boundingBox 是 NormalizedRect，须 .cgRect 才能取 CGRect 属性
             let rect = obs.boundingBox.cgRect
             let midY = rect.minY + rect.height / 2
             blocks.append(Block(text: str, minX: rect.minX, maxX: rect.maxX, midY: midY))
         }
 
-        // ── 行聚合：Vision y 原点在底部，大 → 小 = 从上到下 ─────────
         let sorted = blocks.sorted { $0.midY > $1.midY }
-        let yThreshold: CGFloat = 0.01  // 1% 归一化，更严格的行对齐
+        let yThreshold: CGFloat = 0.01
         var rows: [[Block]] = []
         for block in sorted {
             if let last = rows.indices.last,
@@ -125,29 +116,21 @@ class ScanViewModel: ObservableObject {
             }
         }
 
-        // ── 计算平均行高（用于段落空行判断）────────────────────────
-        // rows 中每行的代表 midY 取第一个 block
         let rowMidYs = rows.map { $0[0].midY }
-        var avgLineHeight: CGFloat = 0.04  // 默认值，防止除零
+        var avgLineHeight: CGFloat = 0.04
         if rowMidYs.count >= 2 {
             var gaps: [CGFloat] = []
             for i in 1..<rowMidYs.count {
-                let gap = rowMidYs[i - 1] - rowMidYs[i]  // 从上到下，前 > 后，gap > 0
+                let gap = rowMidYs[i - 1] - rowMidYs[i]
                 if gap > 0 { gaps.append(gap) }
             }
-            if !gaps.isEmpty {
-                avgLineHeight = gaps.reduce(0, +) / CGFloat(gaps.count)
-            }
+            if !gaps.isEmpty { avgLineHeight = gaps.reduce(0, +) / CGFloat(gaps.count) }
         }
-        let paragraphBreakThreshold = avgLineHeight * 1.5  // 超过 1.5 倍行高视为段落间距
-
-        // ── 行内重建：按 minX 排序，大间距用 §GAP:0.xx§ 占位符标记 ──
-        // 占位符由 UI 层根据实际屏幕宽度渲染为合适数量的点号，避免小屏换行
-        let columnGapThreshold: CGFloat = 0.1  // 归一化间距 > 10% 认为是分栏
+        let paragraphBreakThreshold = avgLineHeight * 1.5
+        let columnGapThreshold: CGFloat = 0.1
 
         var outputLines: [String] = []
         for (rowIdx, row) in rows.enumerated() {
-            // 段落空行：与上一行间距 > 1.5 倍行高，插入空行
             if rowIdx > 0 {
                 let prevMidY = rows[rowIdx - 1][0].midY
                 let currMidY = row[0].midY
@@ -166,7 +149,6 @@ class ScanViewModel: ObservableObject {
                 } else {
                     let gap = block.minX - prevMaxX
                     if gap > columnGapThreshold {
-                        // 用占位符记录间距比例，UI 层动态计算点号数
                         let gapStr = String(format: "%.3f", gap)
                         result += "§GAP:\(gapStr)§\(block.text)"
                     } else {
@@ -181,13 +163,12 @@ class ScanViewModel: ObservableObject {
         return outputLines.joined(separator: "\n")
     }
 
-    /// 将 layoutText 输出的占位符转换为点号，固定 5 个，任何屏幕都不换行
+    /// 占位符 → 固定 5 个点号，任何屏幕不换行
     static func renderDots(in text: String, availableWidth: CGFloat = 0, fontSize: CGFloat = 14) -> String {
-        let separator = " ..... "  // 固定 5 个点，视觉引导够用，不撑破任何屏幕
-        return text.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: separator, options: .regularExpression)
+        text.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: " ..... ", options: .regularExpression)
     }
 
-    // MARK: - PDF 处理（多页合并 OCR）
+    // MARK: - PDF 处理（多页分片，LazyVStack 渲染）
     func processPDF(url: URL, onComplete: (() -> Void)? = nil) {
         guard let pdf = PDFDocument(url: url) else {
             showAlert(title: "打开失败", message: "无法读取该 PDF 文件，请确认文件完整")
@@ -197,7 +178,7 @@ class ScanViewModel: ObservableObject {
         scanResult = nil
 
         Task {
-            var allText: [String] = []
+            var pages: [ScanPage] = []
             var totalConfidence: Double = 0
             var observationCount = 0
             var firstImage: UIImage?
@@ -218,7 +199,6 @@ class ScanViewModel: ObservableObject {
                     page.draw(with: .mediaBox, to: ctx.cgContext)
                 }
                 if firstImage == nil { firstImage = pageImage }
-
                 guard let cgImage = pageImage.cgImage else { continue }
 
                 var request = RecognizeTextRequest()
@@ -235,14 +215,14 @@ class ScanViewModel: ObservableObject {
 
                 let observations = (try? await request.perform(on: cgImage, orientation: .up)) ?? []
                 let pageText = layoutText(from: observations)
-                allText.append(pageText)
+                pages.append(ScanPage(id: i + 1, content: pageText))
 
                 let lines = observations.compactMap { $0.topCandidates(1).first }
                 totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
                 observationCount += lines.count
             }
 
-            let fullText = allText.joined(separator: "\n\n")
+            let fullText = pages.map(\.content).joined(separator: "\n\n")
             let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
             let lang = detectLanguage(fullText)
 
@@ -252,7 +232,8 @@ class ScanViewModel: ObservableObject {
                 recognizedText: fullText.isEmpty ? "未能从 PDF 中提取到文字" : fullText,
                 detectedLanguage: lang,
                 confidence: avgConfidence,
-                timestamp: Date()
+                timestamp: Date(),
+                pages: pages
             )
             onComplete?()
         }
@@ -266,8 +247,7 @@ class ScanViewModel: ObservableObject {
             let scale = maxDimension / max(size.width, size.height)
             targetSize = CGSize(width: size.width * scale, height: size.height * scale)
         }
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
+        return UIGraphicsImageRenderer(size: targetSize).image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
@@ -285,11 +265,7 @@ class ScanViewModel: ObservableObject {
     func exportWord(isPremium: Bool) async -> String? {
         guard let result = scanResult else { return nil }
         return await Task.detached(priority: .userInitiated) {
-            DocxExporter.export(
-                text: result.recognizedText,
-                isPremium: isPremium,
-                fileName: "ScanResult"
-            )
+            DocxExporter.export(text: result.recognizedText, isPremium: isPremium, fileName: "ScanResult")
         }.value
     }
 
@@ -318,6 +294,12 @@ class ScanViewModel: ObservableObject {
     }
 }
 
+// MARK: - PDF 分片数据模型
+struct ScanPage: Identifiable {
+    let id: Int        // 页码，从 1 开始
+    let content: String  // 含 §GAP§ 占位符的原始文本
+}
+
 // MARK: - OCR 错误
 enum OCRError: LocalizedError {
     case noTextFound
@@ -339,6 +321,7 @@ struct OCRResult: Identifiable, Equatable {
     let detectedLanguage: String
     let confidence: Double
     let timestamp: Date
+    let pages: [ScanPage]   // PDF 多页分片；单图时为空
 
     var isChinese: Bool {
         detectedLanguage.hasPrefix("zh") || detectedLanguage == "zh"
