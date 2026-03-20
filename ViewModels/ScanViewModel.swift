@@ -103,14 +103,16 @@ class ScanViewModel: ObservableObject {
                 if regex.firstMatch(in: str, range: range) != nil { continue }
             }
 
-            let box = obs.boundingBox  // CGRect，归一化，左下角为原点，y 轴向上
-            // 翻转 y 轴：midY 越大越靠上 → 翻转后从小到大 = 从上到下
-            let flippedMidY = 1.0 - (box.minY + box.height / 2)
-            blocks.append(Block(text: str, minX: box.minX, midY: flippedMidY))
+            // iOS 18 Vision: boundingBox 是 NormalizedRect，先转 CGRect 再取坐标
+            let rect = obs.boundingBox.cgRect
+            // Vision 坐标原点在左下角，y 轴向上
+            // midY 越大越靠上，排序用 > 从大到小 = 从上到下
+            let midY = rect.minY + rect.height / 2
+            blocks.append(Block(text: str, minX: rect.minX, midY: midY))
         }
 
-        // 翻转后 midY 小 = 靠上，从小到大排 = 从上到下
-        let sorted = blocks.sorted { $0.midY < $1.midY }
+        // Vision y 原点在底部，midY 大 = 靠上，从大到小排 = 从上到下
+        let sorted = blocks.sorted { $0.midY > $1.midY }
 
         // 行聚合：y 轴差值在阈值内归为同一行
         let yThreshold: CGFloat = 0.02  // 归一化坐标 2%，容错同行对齐
