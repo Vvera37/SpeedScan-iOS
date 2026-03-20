@@ -103,17 +103,17 @@ class ScanViewModel: ObservableObject {
                 if regex.firstMatch(in: str, range: range) != nil { continue }
             }
 
-            let box = obs.boundingBox  // NormalizedRect，归一化，左下角为(0,0)
-            // 翻转 y 轴：Vision y=0 在底部，翻转后越大越靠上（屏幕顶部）
-            let flippedMidY = 1.0 - (box.y + box.height / 2)
-            blocks.append(Block(text: str, minX: box.x, midY: flippedMidY))
+            let box = obs.boundingBox  // CGRect，归一化，左下角为原点，y 轴向上
+            // 翻转 y 轴：midY 越大越靠上 → 翻转后从小到大 = 从上到下
+            let flippedMidY = 1.0 - (box.minY + box.height / 2)
+            blocks.append(Block(text: str, minX: box.minX, midY: flippedMidY))
         }
 
-        // 按 y 排序（从上到下）
+        // 翻转后 midY 小 = 靠上，从小到大排 = 从上到下
         let sorted = blocks.sorted { $0.midY < $1.midY }
 
-        // 行聚合：y 轴差值在阈值内的归为同一行
-        let yThreshold: CGFloat = 0.018  // 约等于图片高度 1.8%
+        // 行聚合：y 轴差值在阈值内归为同一行
+        let yThreshold: CGFloat = 0.02  // 归一化坐标 2%，容错同行对齐
         var rows: [[Block]] = []
         for block in sorted {
             if let lastRowIdx = rows.indices.last,
