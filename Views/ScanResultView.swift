@@ -230,7 +230,6 @@ struct SinglePageTextCard: View {
     let rawText: String
     let charCount: Int
     let isTranslated: Bool
-    @State private var textHeight: CGFloat = 200
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -247,8 +246,7 @@ struct SinglePageTextCard: View {
 
             Divider().padding(.horizontal, 16)
 
-            SelectableTextView(rawText: rawText, contentHeight: $textHeight)
-                .frame(height: textHeight)
+            SelectableTextView(rawText: rawText, contentHeight: .constant(0))
                 .padding(16)
         }
         .background(Color.white)
@@ -261,7 +259,6 @@ struct SinglePageTextCard: View {
 struct PageCell: View {
     let page: ScanPage
     let totalPages: Int
-    @State private var textHeight: CGFloat = 120
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -273,8 +270,7 @@ struct PageCell: View {
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(Color(UIColor.systemGroupedBackground))
 
-            SelectableTextView(rawText: page.content, contentHeight: $textHeight)
-                .frame(height: textHeight)
+            SelectableTextView(rawText: page.content, contentHeight: .constant(0))
                 .padding(14)
         }
         .background(Color.white)
@@ -336,39 +332,18 @@ struct TranslateToggleButton: View {
     }
 }
 
-// MARK: - SelectableTextView（高度截断终极修复）
-// 方案：UIKit 用 sizeThatFits 计算真实内容高度，通过 @Binding 回传给 SwiftUI，
-// 用 .frame(height:) 精确设置高度，彻底绕开 GeometryReader 在 ScrollView 里坍缩的问题。
-struct SelectableTextView: UIViewRepresentable {
+// MARK: - OCR 文字展示（SwiftUI Text，天然撑开，支持长按选择）
+struct SelectableTextView: View {
     let rawText: String
-    @Binding var contentHeight: CGFloat
-    private let fontSize: CGFloat = 14
-    // 屏幕宽度减去外层 padding（左右各20 + 内层各16 = 72）
-    private var targetWidth: CGFloat { UIScreen.main.bounds.width - 72 }
+    @Binding var contentHeight: CGFloat  // 保留接口兼容，实际不再使用
 
-    func makeUIView(context: Context) -> UITextView {
-        let tv = UITextView()
-        tv.isEditable = false
-        tv.isSelectable = true
-        tv.isScrollEnabled = false
-        tv.backgroundColor = .clear
-        tv.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        tv.textColor = UIColor.label
-        tv.textContainerInset = .zero
-        tv.textContainer.lineFragmentPadding = 0
-        tv.textContainer.lineBreakMode = .byWordWrapping
-        tv.textContainer.maximumNumberOfLines = 0
-        return tv
-    }
-
-    func updateUIView(_ uiView: UITextView, context: Context) {
-        let rendered = ScanViewModel.renderDots(in: rawText)
-        if uiView.text != rendered { uiView.text = rendered }
-
-        // sizeThatFits：用固定宽度计算真实内容高度，不依赖 bounds
-        let size = uiView.sizeThatFits(CGSize(width: targetWidth, height: .greatestFiniteMagnitude))
-        guard size.height > 0, size.height != contentHeight else { return }
-        DispatchQueue.main.async { contentHeight = size.height }
+    var body: some View {
+        Text(ScanViewModel.renderDots(in: rawText))
+            .font(.system(size: 14, design: .monospaced))
+            .foregroundColor(.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)   // iOS 15+，长按可选择复制
+            .fixedSize(horizontal: false, vertical: true)  // 宽度跟随父容器，高度自由撑开
     }
 }
 
