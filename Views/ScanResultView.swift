@@ -79,11 +79,7 @@ struct ScanResultView: View {
                         //     .padding(.horizontal, 20)
                         // }
 
-                        // 非会员升级引导（明确告知导出有水印，引导升级）
-                        if !subscriptionManager.isPremium {
-                            UpgradePromptBanner()
-                                .padding(.horizontal, 20)
-                        }
+                        // 升级引导暂时隐藏，产品优化阶段不打扰用户
 
                         // 底部操作栏占位空间
                         Spacer(minLength: 100)
