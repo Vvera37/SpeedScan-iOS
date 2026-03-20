@@ -92,7 +92,7 @@ struct ScanView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             HStack(spacing: 10) {
-                                // 测试图片
+                                // 测试图片1（生成）
                                 Button {
                                     if let url = Bundle.main.url(forResource: "test-ocr-image", withExtension: "jpg"),
                                        let data = try? Data(contentsOf: url),
@@ -100,7 +100,24 @@ struct ScanView: View {
                                         viewModel.selectedImage = img
                                     }
                                 } label: {
-                                    Label("测试图片", systemImage: "photo")
+                                    Label("图片1", systemImage: "photo")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.gray.opacity(0.6))
+                                        .cornerRadius(10)
+                                }
+
+                                // 测试图片2（test1.jpg）
+                                Button {
+                                    if let url = Bundle.main.url(forResource: "test-ocr-image2", withExtension: "jpg"),
+                                       let data = try? Data(contentsOf: url),
+                                       let img = UIImage(data: data) {
+                                        viewModel.selectedImage = img
+                                    }
+                                } label: {
+                                    Label("图片2", systemImage: "photo.fill")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(.white)
                                         .frame(maxWidth: .infinity)
@@ -115,7 +132,7 @@ struct ScanView: View {
                                         viewModel.processPDF(url: url)
                                     }
                                 } label: {
-                                    Label("测试 PDF", systemImage: "doc.richtext")
+                                    Label("PDF", systemImage: "doc.richtext")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(.white)
                                         .frame(maxWidth: .infinity)
