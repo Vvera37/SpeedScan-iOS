@@ -182,8 +182,10 @@ struct ScanResultView: View {
 
         Task {
             let isPremium = subscriptionManager.isPremium
-            let text = displayText
+            // 导出前必须 renderDots 清掉 §GAP§ 占位符，否则 Word 里全是乱码
+            let text = ScanViewModel.renderDots(in: displayText)
             let lang = result.detectedLanguage
+            print("[Export] text length: \(text.count)")
 
             let filePath = await Task.detached(priority: .userInitiated) {
                 DocxExporter.export(text: text, isPremium: isPremium, fileName: "ScanResult")
