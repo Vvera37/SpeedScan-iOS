@@ -168,7 +168,7 @@ class ScanViewModel: ObservableObject {
         text.replacingOccurrences(of: #"§GAP:[0-9.]+§"#, with: " ..... ", options: .regularExpression)
     }
 
-    // MARK: - PDF 处理（多页分片，LazyVStack 渲染）
+    // MARK: - PDF 处理（优先提取文字层，无文字层才走 OCR）
     func processPDF(url: URL, onComplete: (() -> Void)? = nil) {
         guard let pdf = PDFDocument(url: url) else {
             showAlert(title: "打开失败", message: "无法读取该 PDF 文件，请确认文件完整")
@@ -179,25 +179,26 @@ class ScanViewModel: ObservableObject {
 
         Task {
             var pages: [ScanPage] = []
-            var totalConfidence: Double = 0
-            var observationCount = 0
             var firstImage: UIImage?
+            let pageCount = min(pdf.pageCount, 20)
 
-            for i in 0..<min(pdf.pageCount, 20) {
+            for i in 0..<pageCount {
                 guard let page = pdf.page(at: i) else { continue }
 
-                let pageRect = page.bounds(for: .mediaBox)
-                let scale: CGFloat = 2.0
-                let renderer = UIGraphicsImageRenderer(size: CGSize(
-                    width: pageRect.width * scale,
-                    height: pageRect.height * scale
-                ))
-                let pageImage = renderer.image { ctx in
-                    ctx.cgContext.scaleBy(x: scale, y: scale)
-                    UIColor.white.setFill()
-                    ctx.fill(CGRect(origin: .zero, size: pageRect.size))
-                    page.draw(with: .mediaBox, to: ctx.cgContext)
+                // ── 优先直接提取 PDF 文字层（无损，无乱码）────────────
+                if let textLayerContent = page.string, textLayerContent.trimmingCharacters(in: .whitespacesAndNewlines).count > 10 {
+                    // 有文字层，直接用，不走 OCR
+                    pages.append(ScanPage(id: i + 1, content: textLayerContent))
+
+                    // 渲染缩略图（仅第一页，用于 Header 预览）
+                    if firstImage == nil {
+                        firstImage = renderPageImage(page: page, scale: 1.0)
+                    }
+                    continue
                 }
+
+                // ── 无文字层（扫描版PDF），走图片 OCR ────────────────
+                let pageImage = renderPageImage(page: page, scale: 2.0)
                 if firstImage == nil { firstImage = pageImage }
                 guard let cgImage = pageImage.cgImage else { continue }
 
@@ -216,14 +217,9 @@ class ScanViewModel: ObservableObject {
                 let observations = (try? await request.perform(on: cgImage, orientation: .up)) ?? []
                 let pageText = layoutText(from: observations)
                 pages.append(ScanPage(id: i + 1, content: pageText))
-
-                let lines = observations.compactMap { $0.topCandidates(1).first }
-                totalConfidence += lines.reduce(0.0) { $0 + Double($1.confidence) }
-                observationCount += lines.count
             }
 
             let fullText = pages.map(\.content).joined(separator: "\n\n")
-            let avgConfidence = observationCount > 0 ? totalConfidence / Double(observationCount) : 0
             let lang = detectLanguage(fullText)
 
             self.isProcessing = false
@@ -231,11 +227,26 @@ class ScanViewModel: ObservableObject {
                 originalImage: firstImage ?? UIImage(),
                 recognizedText: fullText.isEmpty ? "未能从 PDF 中提取到文字" : fullText,
                 detectedLanguage: lang,
-                confidence: avgConfidence,
+                confidence: 1.0,
                 timestamp: Date(),
                 pages: pages
             )
             onComplete?()
+        }
+    }
+
+    // MARK: - PDF 页面渲染为图片
+    private func renderPageImage(page: PDFPage, scale: CGFloat) -> UIImage {
+        let pageRect = page.bounds(for: .mediaBox)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(
+            width: pageRect.width * scale,
+            height: pageRect.height * scale
+        ))
+        return renderer.image { ctx in
+            ctx.cgContext.scaleBy(x: scale, y: scale)
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: pageRect.size))
+            page.draw(with: .mediaBox, to: ctx.cgContext)
         }
     }
 
