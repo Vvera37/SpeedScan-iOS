@@ -24,6 +24,8 @@
 		A1000015 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000015 /* ImagePicker.swift */; };
 		A1000016 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016 /* CameraView.swift */; };
 		A1000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000017 /* Assets.xcassets */; };
+		A1000018 /* test-ocr-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000019 /* test-ocr-image.jpg */; };
+		A1000019 /* test-ocr-pdf.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B1000020 /* test-ocr-pdf.pdf */; };
 		BFE5005E2F63AB2A003548BD /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = BFE5005D2F63AB2A003548BD /* ZIPFoundation */; };
 /* End PBXBuildFile section */
 
@@ -46,6 +48,8 @@
 		B1000016 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		B1000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000019 /* test-ocr-image.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-ocr-image.jpg"; sourceTree = "<group>"; };
+		B1000020 /* test-ocr-pdf.pdf */ = {isa = PBXFileReference; lastKnownFileType = com.adobe.pdf; path = "test-ocr-pdf.pdf"; sourceTree = "<group>"; };
 		B1000099 /* SpeedScan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpeedScan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -138,6 +142,8 @@
 			isa = PBXGroup;
 			children = (
 				B1000017 /* Assets.xcassets */,
+				B1000019 /* test-ocr-image.jpg */,
+				B1000020 /* test-ocr-pdf.pdf */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -215,6 +221,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000017 /* Assets.xcassets in Resources */,
+				A1000018 /* test-ocr-image.jpg in Resources */,
+				A1000019 /* test-ocr-pdf.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

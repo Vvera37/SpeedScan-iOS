@@ -13,6 +13,9 @@ struct ScanView: View {
     @State private var showImagePicker = false
     @State private var showCameraView = false
     @State private var showDocumentPicker = false
+    #if DEBUG
+    @State private var showDebugTestPDF = false
+    #endif
     @State private var showResult = false
     @State private var showLoginSheet = false
 
@@ -79,6 +82,54 @@ struct ScanView: View {
                             ) {
                                 showDocumentPicker = true
                             }
+
+                        #if DEBUG
+                        // ── DEBUG 测试面板 ────────────────────────────
+                        VStack(spacing: 8) {
+                            Text("🛠 DEBUG 测试")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 10) {
+                                // 测试图片
+                                Button {
+                                    if let url = Bundle.main.url(forResource: "test-ocr-image", withExtension: "jpg"),
+                                       let data = try? Data(contentsOf: url),
+                                       let img = UIImage(data: data) {
+                                        viewModel.selectedImage = img
+                                    }
+                                } label: {
+                                    Label("测试图片", systemImage: "photo")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.gray.opacity(0.6))
+                                        .cornerRadius(10)
+                                }
+
+                                // 测试 PDF
+                                Button {
+                                    if let url = Bundle.main.url(forResource: "test-ocr-pdf", withExtension: "pdf") {
+                                        viewModel.processPDF(url: url)
+                                    }
+                                } label: {
+                                    Label("测试 PDF", systemImage: "doc.richtext")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.gray.opacity(0.6))
+                                        .cornerRadius(10)
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .background(Color.yellow.opacity(0.08))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+                        #endif
                         }
                         .padding(.horizontal, 20)
 
