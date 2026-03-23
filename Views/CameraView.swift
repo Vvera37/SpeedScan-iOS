@@ -460,6 +460,8 @@ struct CameraView: View {
                         cameraVC?.flashMode = newMode
                     }
                 }
+                // 整个取景区不响应点击，让底部按钮可以正常接收触摸
+                Color.clear.contentShape(Rectangle()).allowsHitTesting(false)
 
                 // 扫描线（拍PPT模式）
                 if selectedMode.showScanLine {
@@ -532,7 +534,6 @@ struct CameraView: View {
             }
             .padding(.top, 20)
             .padding(.bottom, 16)
-            .zIndex(10) // 确保快门在最顶层，不被取景区遮挡
 
             // 模式 Tab 栏
             modeTabBar
