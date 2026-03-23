@@ -447,6 +447,7 @@ struct CameraView: View {
                 } else {
                     // AVFoundation 预览
                     CameraPreviewRepresentable(onVCReady: { vc in
+                        print("✅ 相机控制器已就绪")
                         cameraVC = vc
                         vc.onCapture = { img in
                             capturedImage = img
@@ -498,8 +499,7 @@ struct CameraView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .layoutPriority(1)          // 在 VStack 中弹性占满剩余高度
-        .allowsHitTesting(false)    // 整个取景区不拦截触摸，彻底让底部按钮可点
+        .layoutPriority(1)
     }
 
     // MARK: 模式说明区
@@ -541,7 +541,6 @@ struct CameraView: View {
             auxIconsRow
         }
         .background(Color.black)
-        .zIndex(10)
     }
 
     // MARK: 模式 Tab 栏
