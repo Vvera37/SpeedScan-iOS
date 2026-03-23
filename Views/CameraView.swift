@@ -154,8 +154,7 @@ struct CameraView: View {
 
         Task {
             do {
-                let photo = try await vc.capturePhoto()
-                let image = photo.image
+                let image = try await vc.capturePhoto()
                 await MainActor.run {
                     isCapturing = false
                     if selectedMode == .ppt {
