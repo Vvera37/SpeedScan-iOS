@@ -330,17 +330,15 @@ struct CameraView: View {
     @State private var showAlbumPicker = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
-            // 相机预览 + 顶部工具栏，铺满全屏
+            // 线性布局：工具栏 → 取景区（弹性） → 底部控件，三者不重叠，彻底消除触摸拦截
             VStack(spacing: 0) {
                 topToolbar
-                cameraArea
-            }
 
-            // 底部区域固定贴底，不参与相机区域的高度分配
-            VStack(spacing: 0) {
+                cameraArea
+
                 // 模式说明区
                 if let title = selectedMode.descTitle {
                     modeDescView(title: title, subtitle: selectedMode.descSubtitle)
@@ -356,7 +354,6 @@ struct CameraView: View {
                 // 快门 + Tab + 辅助图标
                 bottomArea
             }
-            .zIndex(20)  // 始终在相机预览上层
         }
         .onAppear {
             checkCameraPermission()
@@ -460,9 +457,6 @@ struct CameraView: View {
                         cameraVC?.flashMode = newMode
                     }
                 }
-                // 整个取景区不响应点击，让底部按钮可以正常接收触摸
-                Color.clear.contentShape(Rectangle()).allowsHitTesting(false)
-
                 // 扫描线（拍PPT模式）
                 if selectedMode.showScanLine {
                     ScanLineView(height: geo.size.height)
@@ -500,7 +494,9 @@ struct CameraView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .layoutPriority(1)          // 在 VStack 中弹性占满剩余高度
+        .allowsHitTesting(false)    // 整个取景区不拦截触摸，彻底让底部按钮可点
     }
 
     // MARK: 模式说明区
