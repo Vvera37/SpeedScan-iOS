@@ -13,6 +13,8 @@ struct ScanView: View {
     @State private var showImagePicker = false
     @State private var showCameraView = false
     @State private var showDocumentPicker = false
+    @State private var isConvertingPPT = false
+    @State private var pptConvertError: String? = nil
     #if DEBUG
     @State private var showDebugTestPDF = false
     #endif
@@ -73,11 +75,11 @@ struct ScanView: View {
                                 }
                             }
 
-                            // 宽卡片：导入 PDF
+                            // 宽卡片：PDF转Word
                             ScanActionCardWide(
-                                icon: "doc.richtext",
-                                title: "导入 PDF",
-                                subtitle: "PDF 文档文字提取，支持多页",
+                                icon: "doc.richtext.fill",
+                                title: "PDF 转 Word",
+                                subtitle: "导入 PDF，一键转为可编辑 Word 文档",
                                 gradient: [Color(hex: "#FF9500"), Color(hex: "#CC7700")]
                             ) {
                                 showDocumentPicker = true
@@ -176,6 +178,27 @@ struct ScanView: View {
                 }
             }
             .navigationBarHidden(true)
+            // 转换中 loading 遮罩
+            .overlay {
+                if isConvertingPPT {
+                    ZStack {
+                        Color.black.opacity(0.5).ignoresSafeArea()
+                        VStack(spacing: 16) {
+                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
+                            Text("正在转换，请稍候…").foregroundColor(.white).font(.system(size: 15))
+                        }
+                        .padding(32).background(Color(white: 0.15)).cornerRadius(16)
+                    }
+                }
+            }
+            .alert("转换失败", isPresented: .init(
+                get: { pptConvertError != nil },
+                set: { if !$0 { pptConvertError = nil } }
+            )) {
+                Button("好") { pptConvertError = nil }
+            } message: {
+                Text(pptConvertError ?? "")
+            }
             // 图片/相册选择器（全屏，符合 HIG 二级页面规范）
             .fullScreenCover(isPresented: $showImagePicker) {
                 ImagePicker(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
@@ -186,11 +209,29 @@ struct ScanView: View {
                     capturedImage: $viewModel.selectedImage,
                     onDismiss: { showCameraView = false },
                     onPPTDone: { pages in
-                        // PPT 多页：目前取第一张触发 OCR，后续可扩展为多页合并
-                        if let first = pages.first {
-                            viewModel.selectedImage = first
-                        }
                         showCameraView = false
+                        // 调后端 iLovePDF 转换图片 → PPTX
+                        guard !pages.isEmpty else { return }
+                        isConvertingPPT = true
+                        Task {
+                            do {
+                                let url = try await ConvertService.imagesToPptx(images: pages)
+                                await MainActor.run {
+                                    isConvertingPPT = false
+                                    // 用系统分享弹出 PPTX 文件
+                                    let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                       let root = scene.windows.first?.rootViewController {
+                                        root.present(av, animated: true)
+                                    }
+                                }
+                            } catch {
+                                await MainActor.run {
+                                    isConvertingPPT = false
+                                    pptConvertError = error.localizedDescription
+                                }
+                            }
+                        }
                     }
                 )
             }
@@ -203,16 +244,32 @@ struct ScanView: View {
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first else { return }
-                    // 访客次数检查
                     guard appState.recordGuestScan() else {
                         showLoginSheet = true
                         return
                     }
-                    // 获取沙盒访问权限（processPDF 内部异步，处理完后再释放）
                     _ = url.startAccessingSecurityScopedResource()
-                    viewModel.processPDF(url: url, onComplete: {
-                        url.stopAccessingSecurityScopedResource()
-                    })
+                    isConvertingPPT = true
+                    Task {
+                        do {
+                            let docxUrl = try await ConvertService.pdfToWord(pdfUrl: url)
+                            url.stopAccessingSecurityScopedResource()
+                            await MainActor.run {
+                                isConvertingPPT = false
+                                let av = UIActivityViewController(activityItems: [docxUrl], applicationActivities: nil)
+                                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                   let root = scene.windows.first?.rootViewController {
+                                    root.present(av, animated: true)
+                                }
+                            }
+                        } catch {
+                            url.stopAccessingSecurityScopedResource()
+                            await MainActor.run {
+                                isConvertingPPT = false
+                                pptConvertError = error.localizedDescription
+                            }
+                        }
+                    }
                 case .failure(let error):
                     viewModel.showAlert(title: "文件选择失败", message: error.localizedDescription)
                 }

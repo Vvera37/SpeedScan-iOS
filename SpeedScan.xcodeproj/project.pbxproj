@@ -19,6 +19,7 @@
 		A1000010 /* ScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000010 /* ScanRecord.swift */; };
 		A1000011 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000011 /* AuthService.swift */; };
 		A1000012 /* DocxExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000012 /* DocxExporter.swift */; };
+		A1000020 /* ConvertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000020 /* ConvertService.swift */; };
 		A1000013 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000013 /* KeychainService.swift */; };
 		A1000014 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000014 /* SubscriptionManager.swift */; };
 		A1000015 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000015 /* ImagePicker.swift */; };
@@ -43,6 +44,7 @@
 		B1000010 /* ScanRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanRecord.swift; sourceTree = "<group>"; };
 		B1000011 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		B1000012 /* DocxExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocxExporter.swift; sourceTree = "<group>"; };
+		B1000020 /* ConvertService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertService.swift; sourceTree = "<group>"; };
 		B1000013 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		B1000014 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		B1000015 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 			children = (
 				B1000011 /* AuthService.swift */,
 				B1000012 /* DocxExporter.swift */,
+				B1000020 /* ConvertService.swift */,
 				B1000013 /* KeychainService.swift */,
 				B1000014 /* SubscriptionManager.swift */,
 			);
@@ -249,6 +252,7 @@
 				A1000010 /* ScanRecord.swift in Sources */,
 				A1000011 /* AuthService.swift in Sources */,
 				A1000012 /* DocxExporter.swift in Sources */,
+				A1000020 /* ConvertService.swift in Sources */,
 				A1000013 /* KeychainService.swift in Sources */,
 				A1000014 /* SubscriptionManager.swift in Sources */,
 				A1000015 /* ImagePicker.swift in Sources */,
