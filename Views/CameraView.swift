@@ -93,6 +93,8 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
     private let photoOutput = AVCapturePhotoOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer!
     private var currentDevice: AVCaptureDevice?
+    /// configureSession 完成后置 true，防止 viewWillAppear 在配置期间调用 startRunning 引发崩溃
+    private var sessionConfigured = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -102,10 +104,10 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        if !session.isRunning {
-            DispatchQueue.global(qos: .background).async { [weak self] in
-                self?.session.startRunning()
-            }
+        // 只有配置完成后才能调用 startRunning，否则会在 beginConfiguration/commitConfiguration 之间崩溃
+        guard sessionConfigured, !session.isRunning else { return }
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.session.startRunning()
         }
     }
 
@@ -180,7 +182,8 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
             self.view.layer.insertSublayer(self.previewLayer, at: 0)
         }
 
-        // startRunning 在后台执行（已在后台线程，直接调用）
+        // 标记配置完成，viewWillAppear 之后可以安全调用 startRunning
+        sessionConfigured = true
         session.startRunning()
     }
 
