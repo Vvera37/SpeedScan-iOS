@@ -34,14 +34,29 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
             recognizesMultipleItems: true,
             isHighlightingEnabled: false
         )
-        print("✅ DataScanner 已就绪")
-        DispatchQueue.main.async { onVCReady(scanner) }
+        print("✅ DataScanner VC 已创建")
+        context.coordinator.onVCReady = onVCReady
         return scanner
     }
 
-    func updateUIViewController(_ vc: DataScannerViewController, context: Context) {}
+    func updateUIViewController(_ vc: DataScannerViewController, context: Context) {
+        // updateUIViewController 在 VC 加入视图层级后调用，此时才能安全启动扫描
+        guard !vc.isScanning else { return }
+        do {
+            try vc.startScanning()
+            print("✅ DataScanner 开始扫描")
+            context.coordinator.onVCReady?(vc)
+            context.coordinator.onVCReady = nil  // 只回调一次
+        } catch {
+            print("❌ startScanning 失败：\(error)")
+        }
+    }
+
     func makeCoordinator() -> Coordinator { Coordinator() }
-    class Coordinator: NSObject, DataScannerViewControllerDelegate {}
+
+    class Coordinator: NSObject, DataScannerViewControllerDelegate {
+        var onVCReady: ((DataScannerViewController) -> Void)?
+    }
 }
 
 // MARK: - 快门按钮
@@ -217,7 +232,6 @@ struct CameraView: View {
             } else if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
                 DataScannerRepresentable(onVCReady: { vc in
                     scannerVC = vc
-                    _ = try? vc.startScanning()
                 })
                 .ignoresSafeArea(edges: [])
             } else {
