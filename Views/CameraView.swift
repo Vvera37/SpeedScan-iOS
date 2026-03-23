@@ -2,8 +2,8 @@
 //  CameraView.swift
 //  SpeedScan
 //
-//  相机页面 — 基于 DataScannerViewController（iOS 16+）
-//  模式：拍图识字 / 拍PPT（多页）
+//  拍图识字：DataScannerViewController（实时文字扫描）
+//  拍PPT：  VNDocumentCameraViewController（自动校正歪斜+颜色，多页连拍）
 //
 
 import SwiftUI
@@ -23,42 +23,6 @@ enum CaptureMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// MARK: - DataScanner 封装
-struct DataScannerRepresentable: UIViewControllerRepresentable {
-    var onVCReady: (DataScannerViewController) -> Void
-
-    func makeUIViewController(context: Context) -> DataScannerViewController {
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: [.text()],
-            qualityLevel: .accurate,
-            recognizesMultipleItems: true,
-            isHighlightingEnabled: false
-        )
-        print("✅ DataScanner VC 已创建")
-        context.coordinator.onVCReady = onVCReady
-        return scanner
-    }
-
-    func updateUIViewController(_ vc: DataScannerViewController, context: Context) {
-        // updateUIViewController 在 VC 加入视图层级后调用，此时才能安全启动扫描
-        guard !vc.isScanning else { return }
-        do {
-            try vc.startScanning()
-            print("✅ DataScanner 开始扫描")
-            context.coordinator.onVCReady?(vc)
-            context.coordinator.onVCReady = nil  // 只回调一次
-        } catch {
-            print("❌ startScanning 失败：\(error)")
-        }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    class Coordinator: NSObject, DataScannerViewControllerDelegate {
-        var onVCReady: ((DataScannerViewController) -> Void)?
-    }
-}
-
 // MARK: - 快门按钮
 struct ShutterButton: View {
     let action: () -> Void
@@ -72,7 +36,6 @@ struct ShutterButton: View {
         .buttonStyle(ScaleButtonStyle2())
     }
 }
-
 private struct ScaleButtonStyle2: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -84,27 +47,106 @@ private struct ScaleButtonStyle2: ButtonStyle {
 // MARK: - 权限提示
 struct CameraPermissionView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "camera.fill").font(.system(size: 48)).foregroundColor(.gray)
-            Text("请在设置中开启相机权限").font(.system(size: 17, weight: .medium)).foregroundColor(.white)
-            Button("前往设置") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "camera.fill").font(.system(size: 48)).foregroundColor(.gray)
+                Text("请在设置中开启相机权限").font(.system(size: 17, weight: .medium)).foregroundColor(.white)
+                Button("前往设置") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
                 }
+                .font(.system(size: 15, weight: .medium)).foregroundColor(.themeGreen)
             }
-            .font(.system(size: 15, weight: .medium)).foregroundColor(.themeGreen)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.black)
     }
 }
 
-// MARK: - CameraView
+// MARK: - DataScanner 封装（拍图识字）
+struct DataScannerRepresentable: UIViewControllerRepresentable {
+    var onVCReady: (DataScannerViewController) -> Void
+    var onTextRecognized: (String) -> Void   // 实时识别回调
+
+    func makeUIViewController(context: Context) -> DataScannerViewController {
+        let scanner = DataScannerViewController(
+            recognizedDataTypes: [.text()],
+            qualityLevel: .accurate,
+            recognizesMultipleItems: true,
+            isHighlightingEnabled: true   // 识别到的文字显示高亮框
+        )
+        scanner.delegate = context.coordinator
+        context.coordinator.onVCReady    = onVCReady
+        context.coordinator.onTextRecognized = onTextRecognized
+        return scanner
+    }
+
+    func updateUIViewController(_ vc: DataScannerViewController, context: Context) {
+        guard !vc.isScanning else { return }
+        do {
+            try vc.startScanning()
+            context.coordinator.onVCReady?(vc)
+            context.coordinator.onVCReady = nil
+        } catch {
+            print("❌ startScanning 失败：\(error)")
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    class Coordinator: NSObject, DataScannerViewControllerDelegate {
+        var onVCReady: ((DataScannerViewController) -> Void)?
+        var onTextRecognized: ((String) -> Void)?
+
+        // 实时识别到文字时触发
+        func dataScanner(_ dataScanner: DataScannerViewController,
+                         didAdd addedItems: [RecognizedItem],
+                         allItems: [RecognizedItem]) {
+            for item in addedItems {
+                if case .text(let text) = item {
+                    onTextRecognized?(text.transcript)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - VNDocumentCamera 封装（拍PPT，自动校正）
+struct DocumentCameraRepresentable: UIViewControllerRepresentable {
+    var onScanned: ([UIImage]) -> Void
+    var onDismiss: () -> Void
+
+    func makeUIViewController(context: Context) -> VNDocumentCameraViewController {
+        let vc = VNDocumentCameraViewController()
+        vc.delegate = context.coordinator
+        return vc
+    }
+    func updateUIViewController(_ vc: VNDocumentCameraViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onScanned: onScanned, onDismiss: onDismiss) }
+
+    class Coordinator: NSObject, VNDocumentCameraViewControllerDelegate {
+        let onScanned: ([UIImage]) -> Void
+        let onDismiss: () -> Void
+        init(onScanned: @escaping ([UIImage]) -> Void, onDismiss: @escaping () -> Void) {
+            self.onScanned = onScanned; self.onDismiss = onDismiss
+        }
+        func documentCameraViewController(_ vc: VNDocumentCameraViewController,
+                                          didFinishWith scan: VNDocumentCameraScan) {
+            var images: [UIImage] = []
+            for i in 0..<scan.pageCount { images.append(scan.imageOfPage(at: i)) }
+            onScanned(images)
+        }
+        func documentCameraViewControllerDidCancel(_ vc: VNDocumentCameraViewController) { onDismiss() }
+        func documentCameraViewController(_ vc: VNDocumentCameraViewController, didFailWithError error: Error) {
+            print("❌ VNDocumentCamera 失败：\(error)"); onDismiss()
+        }
+    }
+}
+
+// MARK: - CameraView 主视图
 struct CameraView: View {
     @Binding var capturedImage: UIImage?
     var onDismiss: () -> Void
-
-    // PPT 多页模式：外部传入已有页面，拍完追加
-    var pptPages: Binding<[UIImage]>?
     var onPPTDone: (([UIImage]) -> Void)?
 
     @State private var scannerVC: DataScannerViewController? = nil
@@ -113,35 +155,42 @@ struct CameraView: View {
     @State private var showAlbumPicker = false
     @State private var isCapturing = false
 
-    // PPT 多页临时存储
+    // PPT 连拍堆栈
     @State private var pptBuffer: [UIImage] = []
-    @State private var showPPTActions = false
-    @State private var lastCaptured: UIImage? = nil
+    // 是否显示 VNDocumentCamera（拍PPT）
+    @State private var showDocumentCamera = false
+
+    // 实时识别到的文字（调试展示）
+    @State private var liveText = ""
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 0) {
-                topToolbar
-                cameraArea
-                bottomArea
-            }
 
-            // PPT 拍完一张后的操作浮层
-            if showPPTActions, let last = lastCaptured {
-                PPTActionOverlay(
-                    lastImage: last,
-                    pageCount: pptBuffer.count,
-                    onContinue: {
-                        showPPTActions = false
-                        _ = try? scannerVC?.startScanning()
+            if showDocumentCamera {
+                // 拍PPT：VNDocumentCameraViewController 全屏
+                DocumentCameraRepresentable(
+                    onScanned: { images in
+                        pptBuffer.append(contentsOf: images)
+                        showDocumentCamera = false
                     },
-                    onDone: {
-                        showPPTActions = false
-                        onPPTDone?(pptBuffer)
-                        dismissSafely()
+                    onDismiss: {
+                        showDocumentCamera = false
+                        if pptBuffer.isEmpty { dismissSafely() }
                     }
                 )
+                .ignoresSafeArea()
+            } else {
+                VStack(spacing: 0) {
+                    topToolbar
+                    cameraArea
+                    bottomArea
+                }
+            }
+
+            // PPT 堆栈缩略图（右下角，无感连拍）
+            if !pptBuffer.isEmpty && !showDocumentCamera {
+                pptStackOverlay
             }
         }
         .onAppear { checkCameraPermission() }
@@ -158,29 +207,19 @@ struct CameraView: View {
         onDismiss()
     }
 
-    // MARK: 拍照
+    // MARK: 拍图识字 - 快门
     private func capturePhoto() {
         guard !isCapturing, let vc = scannerVC else {
-            print("❌ scannerVC nil 或正在拍照中")
-            return
+            print("❌ scannerVC nil 或正在拍照中"); return
         }
         isCapturing = true
-        print("📸 快门触发")
-
         Task {
             do {
                 let image = try await vc.capturePhoto()
                 await MainActor.run {
                     isCapturing = false
-                    if selectedMode == .ppt {
-                        pptBuffer.append(image)
-                        lastCaptured = image
-                        vc.stopScanning()
-                        showPPTActions = true
-                    } else {
-                        capturedImage = image
-                        dismissSafely()
-                    }
+                    capturedImage = image
+                    dismissSafely()
                 }
             } catch {
                 print("❌ capturePhoto 失败：\(error)")
@@ -196,31 +235,29 @@ struct CameraView: View {
             Button { dismissSafely() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
+                    .foregroundColor(.white).frame(width: 44, height: 44)
             }
             Spacer()
-            // PPT 模式显示已拍页数
             if selectedMode == .ppt && !pptBuffer.isEmpty {
-                Text("\(pptBuffer.count) 页")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.themeGreen.opacity(0.8))
-                    .cornerRadius(12)
+                Button {
+                    // 完成 - 传回所有页
+                    onPPTDone?(pptBuffer)
+                    dismissSafely()
+                } label: {
+                    Text("完成 (\(pptBuffer.count)页)")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .background(Color.themeGreen).cornerRadius(16)
+                }
             }
             Spacer()
             Button { showAlbumPicker = true } label: {
                 Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 22))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 22)).foregroundColor(.white).frame(width: 44, height: 44)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .background(Color.black)
+        .padding(.horizontal, 20).padding(.top, 8).background(Color.black)
     }
 
     // MARK: 取景区
@@ -230,9 +267,13 @@ struct CameraView: View {
             if cameraPermissionDenied {
                 CameraPermissionView()
             } else if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
-                DataScannerRepresentable(onVCReady: { vc in
-                    scannerVC = vc
-                })
+                DataScannerRepresentable(
+                    onVCReady: { vc in scannerVC = vc },
+                    onTextRecognized: { text in
+                        // 拍图识字模式下实时更新（可用于未来实时展示）
+                        if selectedMode == .scan { liveText = text }
+                    }
+                )
                 .ignoresSafeArea(edges: [])
             } else {
                 ZStack {
@@ -241,25 +282,27 @@ struct CameraView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-        .layoutPriority(1)
+        .frame(maxWidth: .infinity).layoutPriority(1)
     }
 
     // MARK: 底部区域
     @ViewBuilder
     private var bottomArea: some View {
         VStack(spacing: 0) {
-            // PPT 模式提示
             if selectedMode == .ppt {
-                Text("对准 PPT 页面，点击快门拍摄")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(white: 0.65))
+                Text(pptBuffer.isEmpty ? "点击快门，开始扫描 PPT" : "继续扫描下一张，或点击右上角完成")
+                    .font(.system(size: 13)).foregroundColor(Color(white: 0.65))
                     .padding(.top, 12)
             }
 
-            ShutterButton { capturePhoto() }
-                .padding(.top, 16)
-                .padding(.bottom, 16)
+            ShutterButton {
+                if selectedMode == .ppt {
+                    showDocumentCamera = true  // 调起 VNDocumentCamera
+                } else {
+                    capturePhoto()
+                }
+            }
+            .padding(.top, 16).padding(.bottom, 16)
 
             // 模式 Tab
             HStack(spacing: 40) {
@@ -267,7 +310,6 @@ struct CameraView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             selectedMode = mode
-                            // 切换模式时清空 PPT buffer
                             if mode != .ppt { pptBuffer = [] }
                         }
                     } label: {
@@ -281,10 +323,8 @@ struct CameraView: View {
                         }
                     }
                 }
-            }
-            .padding(.bottom, 8)
+            }.padding(.bottom, 8)
 
-            // 相册 sheet
             Color.clear.frame(height: 16)
                 .sheet(isPresented: $showAlbumPicker) {
                     ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
@@ -293,65 +333,36 @@ struct CameraView: View {
         }
         .background(Color.black)
     }
-}
 
-// MARK: - PPT 拍完一张后的操作浮层
-struct PPTActionOverlay: View {
-    let lastImage: UIImage
-    let pageCount: Int
-    let onContinue: () -> Void
-    let onDone: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.75).ignoresSafeArea()
-            VStack(spacing: 0) {
+    // MARK: PPT 堆栈缩略图（右下角飞入效果）
+    @ViewBuilder
+    private var pptStackOverlay: some View {
+        VStack {
+            Spacer()
+            HStack {
                 Spacer()
-
-                // 缩略图预览
-                Image(uiImage: lastImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 280)
-                    .cornerRadius(12)
-                    .padding(.horizontal, 24)
-
-                Text("第 \(pageCount) 页已拍摄")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(Color(white: 0.8))
-                    .padding(.top, 16)
-
-                // 操作按钮
-                HStack(spacing: 16) {
-                    Button(action: onContinue) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus")
-                            Text("继续拍PPT")
-                        }
-                        .font(.system(size: 16, weight: .medium))
+                ZStack {
+                    // 最多叠显示 3 张
+                    ForEach(Array(pptBuffer.suffix(3).enumerated()), id: \.offset) { idx, img in
+                        Image(uiImage: img)
+                            .resizable().scaledToFill()
+                            .frame(width: 56, height: 72).clipped()
+                            .cornerRadius(6)
+                            .shadow(radius: 4)
+                            .offset(x: CGFloat(idx - 1) * 4, y: CGFloat(idx - 1) * (-4))
+                    }
+                    // 页数角标
+                    Text("\(pptBuffer.count)")
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color(white: 0.25))
-                        .cornerRadius(14)
-                    }
-
-                    Button(action: onDone) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark")
-                            Text("完成保存")
-                        }
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(4)
                         .background(Color.themeGreen)
-                        .cornerRadius(14)
-                    }
+                        .clipShape(Circle())
+                        .offset(x: 22, y: -30)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 48)
+                .padding(.trailing, 20).padding(.bottom, 20)
+                .transition(.scale.combined(with: .opacity))
+                .animation(.spring(response: 0.3), value: pptBuffer.count)
             }
         }
     }
