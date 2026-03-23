@@ -2,14 +2,15 @@
 //  CameraView.swift
 //  SpeedScan
 //
-//  自定义相机页面 — 多模式 Tab / 快门 / 证件 Overlay / AVFoundation
+//  相机页面 — 基于 DataScannerViewController（iOS 16+ 苹果官方方案）
+//  替换原 AVCaptureSession 手动封装，彻底解决快门失效问题
 //
 
 import SwiftUI
+import VisionKit
 import AVFoundation
-import UIKit
 
-// MARK: - 颜色常量（init(hex:) 复用 ScanView.swift 里的定义，同模块共享）
+// MARK: - 颜色常量
 fileprivate extension Color {
     static let themeGreen  = Color(hex: "#34C759")
     static let capsuleBg   = Color(white: 0.22)
@@ -18,24 +19,22 @@ fileprivate extension Color {
 
 // MARK: - 拍摄模式枚举
 enum CaptureMode: String, CaseIterable, Identifiable {
-    case scan       = "扫描"
-    case ppt        = "拍PPT"
-    case toWord     = "拍图转Word"
+    case scan        = "扫描"
+    case ppt         = "拍PPT"
+    case toWord      = "拍图转Word"
     case extractText = "提取文字"
-    case idCard     = "扫描证件"
+    case idCard      = "扫描证件"
 
     var id: String { rawValue }
 
-    /// 说明标题（nil 表示不显示说明区）
     var descTitle: String? {
         switch self {
-        case .ppt:      return "PPT 拍摄利器"
-        case .toWord:   return "图片转 Word"
-        default:        return nil
+        case .ppt:    return "PPT 拍摄利器"
+        case .toWord: return "图片转 Word"
+        default:      return nil
         }
     }
 
-    /// 说明副文本
     var descSubtitle: String? {
         switch self {
         case .ppt:    return "会议或课堂，一键抓拍屏幕与板书，高清易读，摆脱屏幕纹理"
@@ -44,191 +43,42 @@ enum CaptureMode: String, CaseIterable, Identifiable {
         }
     }
 
-    /// 是否显示单页/多页胶囊
     var showPageCapsule: Bool {
         switch self {
         case .scan, .extractText: return true
         default: return false
         }
     }
-
-    /// 是否显示绿色扫描线
-    var showScanLine: Bool { self == .ppt }
-
-    /// 是否显示证件 Overlay
-    var showIdCardOverlay: Bool { self == .idCard }
-
-    /// 是否显示"关于提取文字"标签
-    var showExtractTextTag: Bool { self == .extractText }
 }
 
-// MARK: - 相机预览（UIViewControllerRepresentable）
-struct CameraPreviewView: UIViewControllerRepresentable {
-    @Binding var flashMode: AVCaptureDevice.FlashMode
+// MARK: - DataScanner 封装（UIViewControllerRepresentable）
+struct DataScannerRepresentable: UIViewControllerRepresentable {
     var onCapture: (UIImage) -> Void
-    weak var controller: CameraViewController?
+    var onVCReady: (DataScannerViewController) -> Void
 
-    class Coordinator: NSObject {}
+    func makeUIViewController(context: Context) -> DataScannerViewController {
+        let scanner = DataScannerViewController(
+            recognizedDataTypes: [.text()],
+            qualityLevel: .accurate,
+            recognizesMultipleItems: true,
+            isHighlightingEnabled: false
+        )
+        scanner.delegate = context.coordinator
+        context.coordinator.onCapture = onCapture
+        print("✅ DataScanner 控制器已就绪")
+        onVCReady(scanner)
+        return scanner
+    }
+
+    func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {}
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIViewController(context: Context) -> CameraViewController {
-        let vc = CameraViewController()
-        vc.onCapture = onCapture
-        return vc
-    }
+    class Coordinator: NSObject, DataScannerViewControllerDelegate {
+        var onCapture: ((UIImage) -> Void)?
 
-    func updateUIViewController(_ vc: CameraViewController, context: Context) {
-        vc.flashMode = flashMode
-    }
-}
-
-// MARK: - CameraViewController（AVFoundation 核心）
-class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
-
-    var onCapture: ((UIImage) -> Void)?
-    var flashMode: AVCaptureDevice.FlashMode = .off
-
-    private let session = AVCaptureSession()
-    private let photoOutput = AVCapturePhotoOutput()
-    private var previewLayer: AVCaptureVideoPreviewLayer!
-    private var currentDevice: AVCaptureDevice?
-    /// configureSession 完成后置 true，防止 viewWillAppear 在配置期间调用 startRunning 引发崩溃
-    private var sessionConfigured = false
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .black
-        setupSession()
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // 只有配置完成后才能调用 startRunning，否则会在 beginConfiguration/commitConfiguration 之间崩溃
-        guard sessionConfigured, !session.isRunning else { return }
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            self?.session.startRunning()
-        }
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        stopSession()
-    }
-
-    /// 显式停止 session，释放相机资源。
-    /// SwiftUI dismiss 时由 CameraView.onDismiss 主动调用，防止 OOM。
-    func stopSession() {
-        guard session.isRunning else { return }
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            self?.session.stopRunning()
-        }
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        previewLayer?.frame = view.bounds
-    }
-
-    private func setupSession() {
-        // 必须先在主线程检查权限状态，再切到后台配置
-        // 严禁在主线程调用 configureSession — AVCaptureDeviceInput 初始化会触发 mach_msg2_trap 死锁
-        let status = AVCaptureDevice.authorizationStatus(for: .video)
-        guard status == .authorized || status == .notDetermined else { return }
-
-        if status == .notDetermined {
-            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                guard granted else { return }
-                // requestAccess 回调已在后台线程，可直接配置
-                self?.configureSession()
-            }
-        } else {
-            // 切到后台线程，避免主线程 mach_msg2_trap
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                self?.configureSession()
-            }
-        }
-    }
-
-    private func configureSession() {
-        // ⚠️ 此函数必须在后台线程调用
-        session.beginConfiguration()
-        session.sessionPreset = .photo
-
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let input = try? AVCaptureDeviceInput(device: device) else {
-            session.commitConfiguration()
-            return
-        }
-
-        currentDevice = device
-
-        if session.canAddInput(input) {
-            session.addInput(input)
-        }
-
-        if session.canAddOutput(photoOutput) {
-            session.addOutput(photoOutput)
-        }
-
-        session.commitConfiguration()
-
-        // 预览层必须回主线程添加（UI 操作）
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.previewLayer = AVCaptureVideoPreviewLayer(session: self.session)
-            self.previewLayer.videoGravity = .resizeAspectFill
-            self.previewLayer.frame = self.view.bounds
-            self.view.layer.insertSublayer(self.previewLayer, at: 0)
-        }
-
-        // 标记配置完成，viewWillAppear 之后可以安全调用 startRunning
-        sessionConfigured = true
-        session.startRunning()
-    }
-
-    func capturePhoto() {
-        let settings = AVCapturePhotoSettings()
-        if let device = currentDevice, device.hasFlash {
-            settings.flashMode = flashMode
-        }
-        photoOutput.capturePhoto(with: settings, delegate: self)
-    }
-
-    // MARK: AVCapturePhotoCaptureDelegate
-    func photoOutput(_ output: AVCapturePhotoOutput,
-                     didFinishProcessingPhoto photo: AVCapturePhoto,
-                     error: Error?) {
-        guard error == nil,
-              let data = photo.fileDataRepresentation(),
-              let image = UIImage(data: data) else { return }
-        onCapture?(image)
-    }
-}
-
-// MARK: - 证件 Overlay
-// MARK: - 扫描线动画
-struct ScanLineView: View {
-    @State private var offsetY: CGFloat = 0
-    let height: CGFloat
-
-    var body: some View {
-        GeometryReader { geo in
-            Rectangle()
-                .fill(Color.themeGreen.opacity(0.85))
-                .frame(height: 2)
-                .shadow(color: Color.themeGreen.opacity(0.6), radius: 6, x: 0, y: 0)
-                .offset(y: offsetY)
-                .onAppear {
-                    withAnimation(
-                        .linear(duration: 2.2).repeatForever(autoreverses: false)
-                    ) {
-                        offsetY = geo.size.height - 2
-                    }
-                }
-        }
-        .frame(height: height)
-        .clipped()
+        func dataScanner(_ dataScanner: DataScannerViewController,
+                         didTapOn item: RecognizedItem) {}
     }
 }
 
@@ -238,31 +88,28 @@ struct PageModeCapsule: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Button {
+            capsuleBtn(label: "单页", active: !isMultiPage) {
                 withAnimation(.easeInOut(duration: 0.18)) { isMultiPage = false }
-            } label: {
-                Text("单页")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isMultiPage ? Color(white: 0.6) : .black)
-                    .frame(width: 60, height: 32)
-                    .background(isMultiPage ? Color.clear : Color.white)
-                    .cornerRadius(16)
             }
-
-            Button {
+            capsuleBtn(label: "多页", active: isMultiPage) {
                 withAnimation(.easeInOut(duration: 0.18)) { isMultiPage = true }
-            } label: {
-                Text("多页")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isMultiPage ? .black : Color(white: 0.6))
-                    .frame(width: 60, height: 32)
-                    .background(isMultiPage ? Color.white : Color.clear)
-                    .cornerRadius(16)
             }
         }
         .padding(2)
         .background(Color(white: 0.22))
         .cornerRadius(18)
+    }
+
+    @ViewBuilder
+    private func capsuleBtn(label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(active ? .black : Color(white: 0.6))
+                .frame(width: 60, height: 32)
+                .background(active ? Color.white : Color.clear)
+                .cornerRadius(16)
+        }
     }
 }
 
@@ -321,46 +168,34 @@ struct CameraView: View {
     @Binding var capturedImage: UIImage?
     var onDismiss: () -> Void
 
-    // 相机控制器引用（通过闭包传递）
-    @State private var cameraVC: CameraViewController? = nil
-
-    // 状态
+    @State private var scannerVC: DataScannerViewController? = nil
     @State private var selectedMode: CaptureMode = .scan
     @State private var flashMode: AVCaptureDevice.FlashMode = .off
     @State private var isMultiPage: Bool = false
     @State private var selectedIdType: String = "全部类型"
     @State private var cameraPermissionDenied: Bool = false
     @State private var showAlbumPicker = false
+    @State private var isCapturing = false
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // 线性布局：工具栏 → 取景区（弹性） → 底部控件，三者不重叠，彻底消除触摸拦截
             VStack(spacing: 0) {
                 topToolbar
-
                 cameraArea
-
-                // 模式说明区
                 if let title = selectedMode.descTitle {
                     modeDescView(title: title, subtitle: selectedMode.descSubtitle)
                 }
-
-                // 单页/多页胶囊
                 if selectedMode.showPageCapsule {
                     PageModeCapsule(isMultiPage: $isMultiPage)
                         .padding(.top, 12)
                         .padding(.bottom, 4)
                 }
-
-                // 快门 + Tab + 辅助图标
                 bottomArea
             }
         }
-        .onAppear {
-            checkCameraPermission()
-        }
+        .onAppear { checkCameraPermission() }
     }
 
     // MARK: 权限检查
@@ -371,39 +206,56 @@ struct CameraView: View {
         }
     }
 
-    // MARK: 安全关闭（主动释放相机资源，防止 OOM SIGTERM）
     private func dismissSafely() {
-        cameraVC?.stopSession()
+        scannerVC?.stopScanning()
         onDismiss()
+    }
+
+    // MARK: 拍照（截取当前帧）
+    private func captureCurrentFrame() {
+        guard !isCapturing else { return }
+        isCapturing = true
+        print("📸 快门触发，scannerVC = \(String(describing: scannerVC))")
+
+        guard let vc = scannerVC else {
+            print("❌ scannerVC 为 nil，无法拍照")
+            isCapturing = false
+            return
+        }
+
+        // 截取 DataScanner 预览层当前帧
+        let renderer = UIGraphicsImageRenderer(bounds: vc.view.bounds)
+        let image = renderer.image { ctx in
+            vc.view.layer.render(in: ctx.cgContext)
+        }
+        capturedImage = image
+        isCapturing = false
+        dismissSafely()
     }
 
     // MARK: 顶部工具栏
     @ViewBuilder
     private var topToolbar: some View {
         HStack {
-            // 关闭
             Button { dismissSafely() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
             }
-
             Spacer()
-
-            // 闪光灯
             Button {
                 flashMode = (flashMode == .off) ? .on : .off
+                if flashMode == .on {
+                    try? scannerVC?.capturePhoto() // 闪光灯通过系统处理
+                }
             } label: {
                 Image(systemName: flashMode == .off ? "bolt.slash.fill" : "bolt.fill")
                     .font(.system(size: 20))
                     .foregroundColor(flashMode == .on ? Color(hex: "#FFD60A") : .white)
                     .frame(width: 44, height: 44)
             }
-
             Spacer()
-
-            // HD 标签
             ZStack(alignment: .topTrailing) {
                 Text("HD")
                     .font(.system(size: 13, weight: .semibold))
@@ -412,20 +264,14 @@ struct CameraView: View {
                     .padding(.vertical, 5)
                     .background(Color(white: 0.3))
                     .cornerRadius(8)
-
                 Circle()
                     .fill(Color.themeGreen)
                     .frame(width: 8, height: 8)
                     .offset(x: 4, y: -4)
             }
             .frame(width: 44, height: 44)
-
             Spacer()
-
-            // 相册入口（右上角）
-            Button {
-                showAlbumPicker = true
-            } label: {
+            Button { showAlbumPicker = true } label: {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 22))
                     .foregroundColor(.white)
@@ -437,63 +283,34 @@ struct CameraView: View {
         .background(Color.black)
     }
 
-    // MARK: 相机取景区
+    // MARK: 取景区
     @ViewBuilder
     private var cameraArea: some View {
-        GeometryReader { geo in
-            ZStack {
-                if cameraPermissionDenied {
-                    CameraPermissionView()
-                } else {
-                    // AVFoundation 预览
-                    CameraPreviewRepresentable(onVCReady: { vc in
-                        print("✅ 相机控制器已就绪")
-                        cameraVC = vc
-                        vc.onCapture = { img in
-                            capturedImage = img
-                            dismissSafely()
-                        }
-                        vc.flashMode = flashMode
-                    })
-                    .ignoresSafeArea(edges: [])
-                    .allowsHitTesting(false)
-                    .onChange(of: flashMode) { _, newMode in
-                        cameraVC?.flashMode = newMode
+        Group {
+            if cameraPermissionDenied {
+                CameraPermissionView()
+            } else if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
+                DataScannerRepresentable(
+                    onCapture: { img in
+                        capturedImage = img
+                        dismissSafely()
+                    },
+                    onVCReady: { vc in
+                        scannerVC = vc
+                        try? vc.startScanning()
                     }
-                }
-                // 扫描线（拍PPT模式）
-                if selectedMode.showScanLine {
-                    ScanLineView(height: geo.size.height)
-                }
-
-                // 证件 Overlay
-                if selectedMode.showIdCardOverlay {
-                    VStack {
-                        IdCardOverlayWithAction(
-                            selectedIdType: $selectedIdType,
-                            onCapture: { cameraVC?.capturePhoto() }
-                        )
-                        .padding(.top, 24)
-                        Spacer()
-                    }
-                }
-
-                // 提取文字 — 右上角标签
-                if selectedMode.showExtractTextTag {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Text("关于提取文字")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color(white: 0.65))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color(white: 0.2))
-                                .cornerRadius(8)
-                                .padding(.trailing, 16)
-                                .padding(.top, 12)
-                        }
-                        Spacer()
+                )
+                .ignoresSafeArea(edges: [])
+            } else {
+                // 降级：设备不支持 DataScanner（iOS < 16 或模拟器）
+                ZStack {
+                    Color.black
+                    VStack(spacing: 12) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("需要 iOS 16 或以上版本")
+                            .foregroundColor(.white)
                     }
                 }
             }
@@ -527,17 +344,13 @@ struct CameraView: View {
     @ViewBuilder
     private var bottomArea: some View {
         VStack(spacing: 0) {
-            // 快门
             ShutterButton {
-                cameraVC?.capturePhoto()
+                captureCurrentFrame()
             }
             .padding(.top, 20)
             .padding(.bottom, 16)
 
-            // 模式 Tab 栏
             modeTabBar
-
-            // 辅助图标区
             auxIconsRow
         }
         .background(Color.black)
@@ -550,16 +363,12 @@ struct CameraView: View {
             HStack(spacing: 28) {
                 ForEach(CaptureMode.allCases) { mode in
                     Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            selectedMode = mode
-                        }
+                        withAnimation(.easeInOut(duration: 0.18)) { selectedMode = mode }
                     } label: {
                         VStack(spacing: 5) {
-                            // 选中圆点
                             Circle()
                                 .fill(selectedMode == mode ? Color.themeGreen : Color.clear)
                                 .frame(width: 6, height: 6)
-
                             Text(mode.rawValue)
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(selectedMode == mode ? Color.themeGreen : Color.tabInactive)
@@ -572,7 +381,7 @@ struct CameraView: View {
         .frame(height: 44)
     }
 
-    // MARK: 辅助图标区（底部，相册已移至右上角工具栏）
+    // MARK: 辅助图标区
     @ViewBuilder
     private var auxIconsRow: some View {
         Color.clear
@@ -586,150 +395,7 @@ struct CameraView: View {
     }
 }
 
-// MARK: - 证件 Overlay（取景框角标 + 文字触发拍照）
-struct IdCardOverlayWithAction: View {
-    @Binding var selectedIdType: String
-    var onCapture: () -> Void
-
-    let idTypes = ["全部类型", "通用证件", "身份证", "户口本"]
-    let cornerSize: CGFloat = 22
-    let cornerWidth: CGFloat = 3
-
-    var body: some View {
-        VStack(spacing: 14) {
-            // 取景框（带四角 L 形绿色角标）
-            ZStack {
-                // 半透明遮罩提示区域
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    .background(Color.white.opacity(0.04).cornerRadius(8))
-                    .frame(width: 280, height: 176)
-
-                // 四个角标
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    let h = geo.size.height
-                    ZStack {
-                        // 左上
-                        CornerMark(corner: .topLeft)
-                        // 右上
-                        CornerMark(corner: .topRight)
-                        // 左下
-                        CornerMark(corner: .bottomLeft)
-                        // 右下
-                        CornerMark(corner: .bottomRight)
-                    }
-                    .frame(width: w, height: h)
-                }
-                .frame(width: 280, height: 176)
-
-                // 中间提示
-                VStack(spacing: 6) {
-                    Image(systemName: "creditcard")
-                        .font(.system(size: 28))
-                        .foregroundColor(Color(white: 0.55))
-                    Text("将证件放入框内")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(white: 0.55))
-                }
-            }
-            .frame(width: 280, height: 176)
-
-            // 安全提示
-            HStack(spacing: 4) {
-                Image(systemName: "lock.shield")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.themeGreen.opacity(0.8))
-                Text("扫描鸡不存储任何证件信息")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(white: 0.55))
-            }
-
-            // 证件类型胶囊
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(idTypes, id: \.self) { type in
-                        Text(type)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(selectedIdType == type ? .black : .white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(selectedIdType == type ? Color.white : Color(white: 0.28))
-                            .cornerRadius(20)
-                            .onTapGesture { selectedIdType = type }
-                    }
-                }
-                .padding(.horizontal, 24)
-            }
-
-            // 「立即制作」文字触发（不用 Button，避免 hit testing 竞争）
-            Text("立即制作")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(Color.themeGreen)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 48)
-                .background(Color.themeGreen.opacity(0.15))
-                .cornerRadius(24)
-                .onTapGesture { onCapture() }
-        }
-    }
-}
-
-// MARK: - 单角 L 形角标
-private enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
-
-private struct CornerMark: View {
-    let corner: Corner
-    let size: CGFloat = 22
-    let lineWidth: CGFloat = 3
-    let color = Color.themeGreen
-
-    var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            Path { path in
-                switch corner {
-                case .topLeft:
-                    path.move(to: CGPoint(x: 0, y: size))
-                    path.addLine(to: CGPoint(x: 0, y: 0))
-                    path.addLine(to: CGPoint(x: size, y: 0))
-                case .topRight:
-                    path.move(to: CGPoint(x: w - size, y: 0))
-                    path.addLine(to: CGPoint(x: w, y: 0))
-                    path.addLine(to: CGPoint(x: w, y: size))
-                case .bottomLeft:
-                    path.move(to: CGPoint(x: 0, y: h - size))
-                    path.addLine(to: CGPoint(x: 0, y: h))
-                    path.addLine(to: CGPoint(x: size, y: h))
-                case .bottomRight:
-                    path.move(to: CGPoint(x: w - size, y: h))
-                    path.addLine(to: CGPoint(x: w, y: h))
-                    path.addLine(to: CGPoint(x: w, y: h - size))
-                }
-            }
-            .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-        }
-    }
-}
-
-// MARK: - 相机预览桥接（获取 VC 引用）
-struct CameraPreviewRepresentable: UIViewControllerRepresentable {
-    var onVCReady: (CameraViewController) -> Void
-
-    func makeUIViewController(context: Context) -> CameraViewController {
-        let vc = CameraViewController()
-        onVCReady(vc)
-        return vc
-    }
-
-    func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {}
-}
-
 // MARK: - Preview
 #Preview {
-    CameraView(
-        capturedImage: .constant(nil),
-        onDismiss: {}
-    )
+    CameraView(capturedImage: .constant(nil), onDismiss: {})
 }
