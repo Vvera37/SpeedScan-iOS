@@ -246,9 +246,6 @@ struct CameraView: View {
             Spacer()
             Button {
                 flashMode = (flashMode == .off) ? .on : .off
-                if flashMode == .on {
-                    try? scannerVC?.capturePhoto() // 闪光灯通过系统处理
-                }
             } label: {
                 Image(systemName: flashMode == .off ? "bolt.slash.fill" : "bolt.fill")
                     .font(.system(size: 20))
@@ -296,8 +293,11 @@ struct CameraView: View {
                         dismissSafely()
                     },
                     onVCReady: { vc in
-                        scannerVC = vc
-                        try? vc.startScanning()
+                        // 延到下一 RunLoop 赋值，避免在 body 渲染期间修改 @State
+                        DispatchQueue.main.async {
+                            scannerVC = vc
+                            _ = try? vc.startScanning()
+                        }
                     }
                 )
                 .ignoresSafeArea(edges: [])
