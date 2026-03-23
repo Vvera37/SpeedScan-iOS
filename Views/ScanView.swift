@@ -182,7 +182,17 @@ struct ScanView: View {
             }
             // 自定义相机入口（全屏，替代 ImagePicker .camera）
             .fullScreenCover(isPresented: $showCameraView) {
-                CameraView(capturedImage: $viewModel.selectedImage, onDismiss: { showCameraView = false })
+                CameraView(
+                    capturedImage: $viewModel.selectedImage,
+                    onDismiss: { showCameraView = false },
+                    onPPTDone: { pages in
+                        // PPT 多页：目前取第一张触发 OCR，后续可扩展为多页合并
+                        if let first = pages.first {
+                            viewModel.selectedImage = first
+                        }
+                        showCameraView = false
+                    }
+                )
             }
             // PDF 文件选择器
             .fileImporter(
