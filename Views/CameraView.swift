@@ -494,7 +494,7 @@ struct CameraView: View {
         convertTask = Task {
             do {
                 let url = try await withTimeout(seconds: 120) {
-                    try await ConvertService.imagesToPptx(images: self.pptPages)
+                    try await ConvertService.imagesToPdf(images: self.pptPages)
                 }
                 await MainActor.run {
                     self.stopTimer(); self.convertProgress = 1.0; self.convertResultURL = url
@@ -551,12 +551,12 @@ struct PPTGuideView: View {
                 Spacer()
                 Image(systemName: "doc.richtext.fill").font(.system(size: 64))
                     .foregroundColor(Color(hex: "#34C759")).padding(.bottom, 24)
-                Text("扫描幻灯片，生成 PPT")
+                Text("拍照扫描，生成 PDF")
                     .font(.system(size: 22, weight: .bold)).foregroundColor(.white).padding(.bottom, 8)
                 VStack(alignment: .leading, spacing: 14) {
-                    PPTGuideStep(number: "1", text: "拍摄 或 从相册选取每一张幻灯片照片")
+                    PPTGuideStep(number: "1", text: "拍摄 或 从相册选取每一张图片")
                     PPTGuideStep(number: "2", text: "预览并整理页面顺序，可删除或重拍")
-                    PPTGuideStep(number: "3", text: "一键转化为可编辑的 .pptx 文件并保存")
+                    PPTGuideStep(number: "3", text: "一键合并为 PDF 文件并保存分享")
                 }
                 .padding(.horizontal, 32).padding(.vertical, 24)
                 .background(Color.white.opacity(0.07)).cornerRadius(16)
@@ -627,7 +627,7 @@ struct PPTPreviewView: View {
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                     Spacer()
                     Button(action: onConvert) {
-                        Text("生成 PPT")
+                        Text("生成 PDF")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(pages.isEmpty ? .gray : Color(hex: "#34C759"))
                     }.disabled(pages.isEmpty)
@@ -749,7 +749,7 @@ struct PPTConvertingView: View {
                     .rotationEffect(.degrees(progress * 360))
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: progress)
                 VStack(spacing: 12) {
-                    Text("正在转化为 PPT…").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
+                    Text("正在生成 PDF…").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
                     Text("请保持网络连接，请勿关闭应用").font(.system(size: 13)).foregroundColor(Color(white: 0.55))
                 }
                 VStack(spacing: 8) {

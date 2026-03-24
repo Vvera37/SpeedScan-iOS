@@ -14,8 +14,8 @@ enum ConvertService {
 
     private static let baseURL = AuthService.baseURL
 
-    // MARK: - 图片数组 → PPTX
-    static func imagesToPptx(images: [UIImage]) async throws -> URL {
+    // MARK: - 图片数组 → PDF（iLovePDF 只支持 imagepdf，PPT 功能后续处理）
+    static func imagesToPdf(images: [UIImage]) async throws -> URL {
         let base64Images = images.compactMap { img -> String? in
             guard let data = img.jpegData(compressionQuality: 0.85) else { return nil }
             return data.base64EncodedString()
@@ -24,11 +24,11 @@ enum ConvertService {
             throw ConvertError.noImages
         }
 
-        let url = URL(string: "\(baseURL)/api/convert/images-to-pptx")!
+        let url = URL(string: "\(baseURL)/api/convert/images-to-pptx")!  // 路由名保持兼容
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 150  // 略大于 Swift 层 withTimeout(120s)，避免双重超时混淆
+        request.timeoutInterval = 150
 
         let body = ["images": base64Images]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -42,9 +42,8 @@ enum ConvertService {
             throw ConvertError.serverError(msg)
         }
 
-        // 将返回的 PPTX 数据写入临时文件
         let tmpUrl = FileManager.default.temporaryDirectory
-            .appendingPathComponent("presentation_\(Int(Date().timeIntervalSince1970)).pptx")
+            .appendingPathComponent("document_\(Int(Date().timeIntervalSince1970)).pdf")
         try data.write(to: tmpUrl)
         return tmpUrl
     }
