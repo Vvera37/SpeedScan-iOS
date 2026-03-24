@@ -284,33 +284,16 @@ struct LoginView: View {
         defer { isLoading = false }
 
         do {
-            // ⚠️ 后端未上线时会 throw 网络错误，DEBUG 下走 fallback
-            #if DEBUG
-            // 模拟发送成功
-            try await Task.sleep(nanoseconds: 800_000_000)
-            #else
             try await AuthService.sendCode(phone: phoneNumber)
-            #endif
-
             await MainActor.run {
                 showCodeInput = true
                 startCountdown()
             }
         } catch {
-            #if DEBUG
-            // DEBUG 模式降级：仍然展示验证码输入框
-            await MainActor.run {
-                showCodeInput = true
-                startCountdown()
-                errorMessage = "【调试模式】验证码已发送（使用 123456 登录）"
-                showError = true
-            }
-            #else
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 showError = true
             }
-            #endif
         }
     }
 
@@ -325,15 +308,6 @@ struct LoginView: View {
         defer { isLoading = false }
 
         do {
-            #if DEBUG
-            // 调试模式：接受任意6位数字，生成假 Token
-            try await Task.sleep(nanoseconds: 600_000_000)
-            let fakeToken = "debug_token_\(UUID().uuidString)"
-            let expiry = Calendar.current.date(byAdding: .day, value: 90, to: Date())
-            await MainActor.run {
-                appState.saveSession(token: fakeToken, phone: phoneNumber, expiresAt: expiry)
-            }
-            #else
             let response = try await AuthService.login(phone: phoneNumber, code: verificationCode)
             await MainActor.run {
                 appState.saveSession(
@@ -342,7 +316,6 @@ struct LoginView: View {
                     expiresAt: response.expiryDate
                 )
             }
-            #endif
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
