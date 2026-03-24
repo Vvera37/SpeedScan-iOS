@@ -97,7 +97,7 @@ struct ProfileView: View {
             .sheet(isPresented: $showLoginSheet) {
                 LoginView(isModal: true).environmentObject(appState)
             }
-            .confirmationDialog("确认退出登录？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
+            .alert("确认退出登录？", isPresented: $showLogoutConfirm) {
                 Button("退出登录", role: .destructive) { appState.logout() }
                 Button("取消", role: .cancel) {}
             } message: {
