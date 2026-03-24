@@ -87,6 +87,9 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
         scanner.delegate = context.coordinator
         context.coordinator.onVCReady       = onVCReady
         context.coordinator.onTextRecognized = onTextRecognized
+        // UIKit 视图层禁止触摸，防止拦截 SwiftUI 快门按钮
+        // 注：SwiftUI 的 .allowsHitTesting(false) 对 UIViewControllerRepresentable 内层 UIView 无效
+        scanner.view.isUserInteractionEnabled = false
         return scanner
     }
 
@@ -652,18 +655,30 @@ struct PPTPreviewView: View {
 struct PPTPageTile: View {
     let image: UIImage; let index: Int
     let onRetake: () -> Void; let onDelete: () -> Void
+
+    // 固定宽高比 3:4（接近 PPT 幻灯片比例），宽度由 Grid 决定，高度固定等比
+    private let tileAspect: CGFloat = 4.0 / 3.0  // height / width
+
     var body: some View {
         VStack(spacing: 6) {
-            ZStack(alignment: .topTrailing) {
-                Image(uiImage: image).resizable().scaledToFill()
-                    .frame(height: 80).clipped().cornerRadius(8)
-                Button(action: onDelete) {
-                    ZStack {
-                        Circle().fill(Color.black.opacity(0.6)).frame(width: 22, height: 22)
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
-                    }
-                }.padding(4)
+            GeometryReader { geo in
+                ZStack(alignment: .topTrailing) {
+                    // 等比缩放填满固定框，超出部分裁剪，不变形
+                    Image(uiImage: image).resizable().scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.width * tileAspect)
+                        .clipped()
+                        .cornerRadius(8)
+
+                    Button(action: onDelete) {
+                        ZStack {
+                            Circle().fill(Color.black.opacity(0.6)).frame(width: 22, height: 22)
+                            Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
+                        }
+                    }.padding(4)
+                }
             }
+            .aspectRatio(1.0 / tileAspect, contentMode: .fit)  // 让 GeometryReader 有固定高度
+
             Text("第 \(index + 1) 页").font(.system(size: 11, weight: .medium)).foregroundColor(Color(white: 0.7))
             Button(action: onRetake) {
                 Text("点击重拍").font(.system(size: 11, weight: .medium)).foregroundColor(.white)
