@@ -250,11 +250,20 @@ struct CameraView: View {
                 Color.black.ignoresSafeArea()
 
                 // ── 拍图识字模式 ──────────────────────────────────
+                // ZStack 分层：DataScanner(UIKit)在底层，SwiftUI控件在顶层
+                // 避免 UIKit 视图拦截快门按钮的触摸事件
                 if selectedMode == .scan {
-                    VStack(spacing: 0) {
-                        scanTopToolbar
-                        scanCameraArea(height: geo.size.height - bottomBarHeight - 60)
-                        scanBottomArea
+                    ZStack(alignment: .bottom) {
+                        // 底层：取景区（UIKit，不响应点击）
+                        scanCameraArea(height: geo.size.height)
+                            .allowsHitTesting(false)
+
+                        // 顶层：所有 SwiftUI 控件（正常响应点击）
+                        VStack(spacing: 0) {
+                            scanTopToolbar
+                            Spacer()
+                            scanBottomArea
+                        }
                     }
                 }
 
@@ -310,17 +319,20 @@ struct CameraView: View {
                     .ignoresSafeArea()
                 }
 
-                // ── PHPicker 全屏覆盖 ─────────────────────────────
-                if showPHPicker {
-                    PHPickerRepresentable(
-                        onSelected: { images in
-                            handlePicked(images)
-                            showPHPicker = false
-                        },
-                        onDismiss: { showPHPicker = false }
-                    )
-                    .ignoresSafeArea()
-                }
+                // ── PHPicker 用 sheet 弹出（UIViewControllerRepresentable 嵌 ZStack 会导致 dismiss 失效）
+                Color.clear
+                    .sheet(isPresented: $showPHPicker) {
+                        PHPickerRepresentable(
+                            onSelected: { images in
+                                showPHPicker = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    handlePicked(images)
+                                }
+                            },
+                            onDismiss: { showPHPicker = false }
+                        )
+                        .ignoresSafeArea()
+                    }
 
                 // ── 分享 Sheet ────────────────────────────────────
                 if showShareSheet, let url = convertResultURL {
@@ -403,7 +415,7 @@ struct CameraView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: max(height, 200))
-        .clipped()
+        .ignoresSafeArea()
     }
 
     @ViewBuilder

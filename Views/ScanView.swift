@@ -6,11 +6,12 @@
 import SwiftUI
 import Vision
 import SwiftData
+import PhotosUI
 
 struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
     @EnvironmentObject var appState: AppState
-    @State private var showImagePicker = false
+    @State private var showPHPicker = false          // 换成 PHPicker，替代旧 UIImagePickerController
     @State private var showCameraView = false
     @State private var showDocumentPicker = false
     @State private var isConvertingPPT = false
@@ -70,8 +71,7 @@ struct ScanView: View {
                                     subtitle: "从图库选择",
                                     gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]
                                 ) {
-
-                                    showImagePicker = true
+                                    showPHPicker = true
                                 }
                             }
 
@@ -199,9 +199,9 @@ struct ScanView: View {
             } message: {
                 Text(pptConvertError ?? "")
             }
-            // 图片/相册选择器（全屏，符合 HIG 二级页面规范）
-            .fullScreenCover(isPresented: $showImagePicker) {
-                ImagePicker(sourceType: .photoLibrary, selectedImage: $viewModel.selectedImage)
+            // 相册选择器（PHPicker，iOS 16+ 稳定，替代旧 UIImagePickerController）
+            .sheet(isPresented: $showPHPicker) {
+                ScanPHPickerView(selectedImage: $viewModel.selectedImage, isPresented: $showPHPicker)
             }
             // 自定义相机入口（全屏，替代 ImagePicker .camera）
             .fullScreenCover(isPresented: $showCameraView) {
@@ -505,6 +505,39 @@ extension Color {
             (a, r, g, b) = (255, 0, 0, 0)
         }
         self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, opacity: Double(a)/255)
+    }
+}
+
+// MARK: - 首页相册单选 PHPicker（单张，替代 UIImagePickerController 避免白页）
+import PhotosUI
+
+struct ScanPHPickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Binding var isPresented: Bool
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration(photoLibrary: .shared())
+        config.filter = .images
+        config.selectionLimit = 1
+        let vc = PHPickerViewController(configuration: config)
+        vc.delegate = context.coordinator
+        return vc
+    }
+    func updateUIViewController(_ vc: PHPickerViewController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: ScanPHPickerView
+        init(_ parent: ScanPHPickerView) { self.parent = parent }
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            parent.isPresented = false
+            guard let result = results.first else { return }
+            result.itemProvider.loadObject(ofClass: UIImage.self) { obj, _ in
+                DispatchQueue.main.async {
+                    self.parent.selectedImage = obj as? UIImage
+                }
+            }
+        }
     }
 }
 
