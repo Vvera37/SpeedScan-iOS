@@ -360,7 +360,7 @@ struct CameraView: View {
         )) {
             Button("删除", role: .destructive) {
                 if let idx = deleteTargetIndex {
-                    withAnimation { pptPages.remove(at: idx) }
+                    _ = withAnimation { pptPages.remove(at: idx) }
                     deleteTargetIndex = nil
                     if pptPages.isEmpty { pptFlow = .guide }
                     showToast("已删除，如需恢复请重新拍摄")
