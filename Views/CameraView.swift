@@ -199,7 +199,7 @@ func presentPHPicker(onSelected: @escaping ([UIImage]) -> Void, onDismiss: @esca
 }
 
 final class PHPickerCoordinatorBox: NSObject, PHPickerViewControllerDelegate {
-    static var key = "PHPickerCoordinatorBox"
+    static var key: UInt8 = 0
     let onSelected: ([UIImage]) -> Void
     let onDismiss: () -> Void
     init(onSelected: @escaping ([UIImage]) -> Void, onDismiss: @escaping () -> Void) {

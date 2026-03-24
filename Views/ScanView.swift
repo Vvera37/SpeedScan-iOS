@@ -25,296 +25,165 @@ struct ScanView: View {
     // 最近记录（SwiftData）
     @Query(sort: \ScanRecord.createdAt, order: .reverse) private var recentRecords: [ScanRecord]
 
-    var body: some View {
+        var body: some View {
         NavigationStack {
+            scanContentView.navigationBarHidden(true)
+        }
+    }
+
+    // MARK: - 主内容拆分（避免 body 类型推断超时）
+    private var scanContentView: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    scanHeaderView
+                    scanActionCards
+                    if viewModel.isProcessing { ProcessingCard().padding(.horizontal, 20) }
+                    scanRecentRecords
+                    Spacer(minLength: 40)
+                }
+            }
+        }
+        .overlay { convertingOverlay }
+        .alert("转换失败", isPresented: .init(
+            get: { pptConvertError != nil },
+            set: { if !$0 { pptConvertError = nil } }
+        )) {
+            Button("好") { pptConvertError = nil }
+        } message: { Text(pptConvertError ?? "") }
+        .sheet(isPresented: $showPHPicker) {
+            ScanPHPickerView(selectedImage: $viewModel.selectedImage, isPresented: $showPHPicker)
+        }
+        .fullScreenCover(isPresented: $showCameraView) { cameraViewContent }
+        .fileImporter(isPresented: $showDocumentPicker, allowedContentTypes: [.pdf], allowsMultipleSelection: false) { handlePDFImport($0) }
+        .fullScreenCover(isPresented: $showResult) {
+            if let result = viewModel.scanResult {
+                ScanResultView(result: result, viewModel: viewModel)
+            }
+        }
+        .sheet(isPresented: $showLoginSheet) {
+            LoginView(isModal: true).environmentObject(appState)
+        }
+        .onChange(of: viewModel.selectedImage) { _, newImage in
+            guard newImage != nil else { return }
+            if appState.recordGuestScan() {
+                viewModel.performOCR()
+            } else {
+                Task { @MainActor in viewModel.selectedImage = nil; showLoginSheet = true }
+            }
+        }
+        .onChange(of: viewModel.scanResult) { _, result in if result != nil { showResult = true } }
+        .onChange(of: appState.showLoginRequired) { _, show in
+            if show { showLoginSheet = true; appState.showLoginRequired = false }
+        }
+        .alert(item: $viewModel.alertItem) { alert in
+            Alert(title: alert.title, message: alert.message, dismissButton: alert.dismissButton)
+        }
+    }
+
+    private var scanHeaderView: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("扫描鸡").font(.system(size: 32, weight: .bold)).foregroundColor(.primary)
+                Text("智能 OCR · 文字识别").font(.subheadline).foregroundColor(.secondary)
+            }
+            Spacer()
+            Image(systemName: "camera.viewfinder").font(.system(size: 28)).foregroundColor(Color(hex: "#007AFF"))
+        }
+        .padding(.horizontal, 20).padding(.top, 16)
+    }
+
+    private var scanActionCards: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                ScanActionCard(icon: "camera.fill", title: "拍照扫描", subtitle: "实时拍摄识别",
+                               gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]) { showCameraView = true }
+                ScanActionCard(icon: "photo.on.rectangle", title: "相册导入", subtitle: "从图库选择",
+                               gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]) { showPHPicker = true }
+            }
+            ScanActionCardWide(icon: "doc.richtext.fill", title: "PDF 转 Word",
+                               subtitle: "导入 PDF，一键转为可编辑 Word 文档",
+                               gradient: [Color(hex: "#FF9500"), Color(hex: "#CC7700")]) { showDocumentPicker = true }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder
+    private var scanRecentRecords: some View {
+        if !recentRecords.isEmpty && !viewModel.isProcessing {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("最近扫描").font(.headline).foregroundColor(.primary).padding(.horizontal, 20)
+                ForEach(recentRecords.prefix(2)) { record in
+                    RecentRecordRow(record: record).padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var convertingOverlay: some View {
+        if isConvertingPPT {
             ZStack {
-                // 背景色
-                Color.white.ignoresSafeArea()
+                Color.black.opacity(0.5).ignoresSafeArea()
+                VStack(spacing: 16) {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
+                    Text("正在转换，请稍候…").foregroundColor(.white).font(.system(size: 15))
+                }
+                .padding(32).background(Color(white: 0.15)).cornerRadius(16)
+            }
+        }
+    }
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-
-                        // MARK: 顶部标题
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("扫描鸡")
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.primary)
-                                Text("智能 OCR · 文字识别")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "camera.viewfinder")
-                                .font(.system(size: 28))
-                                .foregroundColor(Color(hex: "#007AFF"))
+    private var cameraViewContent: some View {
+        CameraView(
+            capturedImage: $viewModel.selectedImage,
+            onDismiss: { showCameraView = false },
+            onPPTDone: { pages in
+                showCameraView = false
+                guard !pages.isEmpty else { return }
+                isConvertingPPT = true
+                Task {
+                    do {
+                        let url = try await ConvertService.imagesToPdf(images: pages)
+                        await MainActor.run {
+                            isConvertingPPT = false
+                            let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let root = scene.windows.first?.rootViewController { root.present(av, animated: true) }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
-
-                        // MARK: 主操作卡片区
-                        VStack(spacing: 12) {
-                            // 两列卡片：拍照 / 相册
-                            HStack(spacing: 12) {
-                                ScanActionCard(
-                                    icon: "camera.fill",
-                                    title: "拍照扫描",
-                                    subtitle: "实时拍摄识别",
-                                    gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]
-                                ) {
-                                    showCameraView = true
-                                }
-
-                                ScanActionCard(
-                                    icon: "photo.on.rectangle",
-                                    title: "相册导入",
-                                    subtitle: "从图库选择",
-                                    gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]
-                                ) {
-                                    showPHPicker = true
-                                }
-                            }
-
-                            // 宽卡片：PDF转Word
-                            ScanActionCardWide(
-                                icon: "doc.richtext.fill",
-                                title: "PDF 转 Word",
-                                subtitle: "导入 PDF，一键转为可编辑 Word 文档",
-                                gradient: [Color(hex: "#FF9500"), Color(hex: "#CC7700")]
-                            ) {
-                                showDocumentPicker = true
-                            }
-
-                        #if DEBUG
-                        // ── DEBUG 测试面板 ────────────────────────────
-                        VStack(spacing: 8) {
-                            Text("🛠 DEBUG 测试")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 10) {
-                                // 测试图片1（生成）
-                                Button {
-                                    if let url = Bundle.main.url(forResource: "test-ocr-image", withExtension: "jpg"),
-                                       let data = try? Data(contentsOf: url),
-                                       let img = UIImage(data: data) {
-                                        viewModel.selectedImage = img
-                                    }
-                                } label: {
-                                    Label("图片1", systemImage: "photo")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.gray.opacity(0.6))
-                                        .cornerRadius(10)
-                                }
-
-                                // 测试图片2（test1.jpg）
-                                Button {
-                                    if let url = Bundle.main.url(forResource: "test-ocr-image2", withExtension: "jpg"),
-                                       let data = try? Data(contentsOf: url),
-                                       let img = UIImage(data: data) {
-                                        viewModel.selectedImage = img
-                                    }
-                                } label: {
-                                    Label("图片2", systemImage: "photo.fill")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.gray.opacity(0.6))
-                                        .cornerRadius(10)
-                                }
-
-                                // 测试 PDF
-                                Button {
-                                    if let url = Bundle.main.url(forResource: "test-ocr-pdf", withExtension: "pdf") {
-                                        viewModel.processPDF(url: url)
-                                    }
-                                } label: {
-                                    Label("PDF", systemImage: "doc.richtext")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.gray.opacity(0.6))
-                                        .cornerRadius(10)
-                                }
-                            }
-                        }
-                        .padding(14)
-                        .background(Color.yellow.opacity(0.08))
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
-                        #endif
-                        }
-                        .padding(.horizontal, 20)
-
-                        // MARK: 处理中状态
-                        if viewModel.isProcessing {
-                            ProcessingCard()
-                                .padding(.horizontal, 20)
-                        }
-
-                        // MARK: 最近扫描记录（最多2条）
-                        if !recentRecords.isEmpty && !viewModel.isProcessing {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("最近扫描")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                    .padding(.horizontal, 20)
-
-                                ForEach(recentRecords.prefix(2)) { record in
-                                    RecentRecordRow(record: record)
-                                        .padding(.horizontal, 20)
-                                }
-                            }
-                        }
-
-                        Spacer(minLength: 40)
+                    } catch {
+                        await MainActor.run { isConvertingPPT = false; pptConvertError = error.localizedDescription }
                     }
                 }
             }
-            .navigationBarHidden(true)
-            // 转换中 loading 遮罩
-            .overlay {
-                if isConvertingPPT {
-                    ZStack {
-                        Color.black.opacity(0.5).ignoresSafeArea()
-                        VStack(spacing: 16) {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
-                            Text("正在转换，请稍候…").foregroundColor(.white).font(.system(size: 15))
-                        }
-                        .padding(32).background(Color(white: 0.15)).cornerRadius(16)
+        )
+    }
+
+    private func handlePDFImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            guard appState.recordGuestScan() else { showLoginSheet = true; return }
+            _ = url.startAccessingSecurityScopedResource()
+            isConvertingPPT = true
+            Task {
+                do {
+                    let docxUrl = try await ConvertService.pdfToWord(pdfUrl: url)
+                    url.stopAccessingSecurityScopedResource()
+                    await MainActor.run {
+                        isConvertingPPT = false
+                        let av = UIActivityViewController(activityItems: [docxUrl], applicationActivities: nil)
+                        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let root = scene.windows.first?.rootViewController { root.present(av, animated: true) }
                     }
+                } catch {
+                    url.stopAccessingSecurityScopedResource()
+                    await MainActor.run { isConvertingPPT = false; pptConvertError = error.localizedDescription }
                 }
             }
-            .alert("转换失败", isPresented: .init(
-                get: { pptConvertError != nil },
-                set: { if !$0 { pptConvertError = nil } }
-            )) {
-                Button("好") { pptConvertError = nil }
-            } message: {
-                Text(pptConvertError ?? "")
-            }
-            // 相册选择器（PHPicker，iOS 16+ 稳定，替代旧 UIImagePickerController）
-            .sheet(isPresented: $showPHPicker) {
-                ScanPHPickerView(selectedImage: $viewModel.selectedImage, isPresented: $showPHPicker)
-            }
-            // 自定义相机入口（全屏，替代 ImagePicker .camera）
-            .fullScreenCover(isPresented: $showCameraView) {
-                CameraView(
-                    capturedImage: $viewModel.selectedImage,
-                    onDismiss: { showCameraView = false },
-                    onPPTDone: { pages in
-                        showCameraView = false
-                        // 调后端 iLovePDF 转换图片 → PPTX
-                        guard !pages.isEmpty else { return }
-                        isConvertingPPT = true
-                        Task {
-                            do {
-                                let url = try await ConvertService.imagesToPptx(images: pages)
-                                await MainActor.run {
-                                    isConvertingPPT = false
-                                    // 用系统分享弹出 PPTX 文件
-                                    let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                                       let root = scene.windows.first?.rootViewController {
-                                        root.present(av, animated: true)
-                                    }
-                                }
-                            } catch {
-                                await MainActor.run {
-                                    isConvertingPPT = false
-                                    pptConvertError = error.localizedDescription
-                                }
-                            }
-                        }
-                    }
-                )
-            }
-            // PDF 文件选择器
-            .fileImporter(
-                isPresented: $showDocumentPicker,
-                allowedContentTypes: [.pdf],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    guard let url = urls.first else { return }
-                    guard appState.recordGuestScan() else {
-                        showLoginSheet = true
-                        return
-                    }
-                    _ = url.startAccessingSecurityScopedResource()
-                    isConvertingPPT = true
-                    Task {
-                        do {
-                            let docxUrl = try await ConvertService.pdfToWord(pdfUrl: url)
-                            url.stopAccessingSecurityScopedResource()
-                            await MainActor.run {
-                                isConvertingPPT = false
-                                let av = UIActivityViewController(activityItems: [docxUrl], applicationActivities: nil)
-                                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                                   let root = scene.windows.first?.rootViewController {
-                                    root.present(av, animated: true)
-                                }
-                            }
-                        } catch {
-                            url.stopAccessingSecurityScopedResource()
-                            await MainActor.run {
-                                isConvertingPPT = false
-                                pptConvertError = error.localizedDescription
-                            }
-                        }
-                    }
-                case .failure(let error):
-                    viewModel.showAlert(title: "文件选择失败", message: error.localizedDescription)
-                }
-            }
-            // 扫描结果（全屏，符合 HIG 二级页面规范）
-            .fullScreenCover(isPresented: $showResult) {
-                if let result = viewModel.scanResult {
-                    ScanResultView(result: result, viewModel: viewModel)
-                }
-            }
-            // 登录引导弹窗（isModal=true：显示关闭X + 隐私协议）
-            .sheet(isPresented: $showLoginSheet) {
-                LoginView(isModal: true)
-                    .environmentObject(appState)
-            }
-            .onChange(of: viewModel.selectedImage) { _, newImage in
-                guard newImage != nil else { return }
-                // 访客次数检查：状态修改延到下一 RunLoop，避免 "Modifying state during view update" 警告
-                if appState.recordGuestScan() {
-                    viewModel.performOCR()
-                } else {
-                    Task { @MainActor in
-                        viewModel.selectedImage = nil
-                        showLoginSheet = true
-                    }
-                }
-            }
-            .onChange(of: viewModel.scanResult) { _, result in
-                if result != nil {
-                    showResult = true
-                }
-            }
-            .onChange(of: appState.showLoginRequired) { _, show in
-                if show {
-                    showLoginSheet = true
-                    appState.showLoginRequired = false
-                }
-            }
-            .alert(item: $viewModel.alertItem) { alert in
-                Alert(
-                    title: alert.title,
-                    message: alert.message,
-                    dismissButton: alert.dismissButton
-                )
-            }
+        case .failure(let error):
+            viewModel.showAlert(title: "文件选择失败", message: error.localizedDescription)
         }
     }
 }
@@ -509,8 +378,6 @@ extension Color {
 }
 
 // MARK: - 首页相册单选 PHPicker（单张，替代 UIImagePickerController 避免白页）
-import PhotosUI
-
 struct ScanPHPickerView: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
     @Binding var isPresented: Bool
