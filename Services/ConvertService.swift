@@ -28,7 +28,7 @@ enum ConvertService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120  // 转换可能需要一点时间
+        request.timeoutInterval = 150  // 略大于 Swift 层 withTimeout(120s)，避免双重超时混淆
 
         let body = ["images": base64Images]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

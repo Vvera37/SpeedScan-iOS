@@ -410,7 +410,7 @@ struct CameraView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: max(height, 200))
-        .ignoresSafeArea()
+        // 不加 .ignoresSafeArea()，否则 UIKit 视图会物理延伸覆盖快门按钮区域
     }
 
     // MARK: - PHPicker（UIKit present，绕开 SwiftUI 嵌套 modal bug）
