@@ -97,6 +97,8 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
         guard !vc.isScanning else { return }
         do {
             try vc.startScanning()
+            // startScanning() 内部可能重新 enable 交互，必须在它之后再禁用
+            vc.view.isUserInteractionEnabled = false
             context.coordinator.onVCReady?(vc)
             context.coordinator.onVCReady = nil
         } catch {
@@ -595,19 +597,28 @@ struct PPTPreviewView: View {
     let onRetake: (Int) -> Void; let onDelete: (Int) -> Void
     let onConvert: () -> Void; let onAbandon: () -> Void
 
+    @State private var showAbandonAlert = false
+
     private let columns = [GridItem(.flexible()), GridItem(.flexible()),
                             GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
         ZStack {
             Color(hex: "#1C1C1E").ignoresSafeArea()
             VStack(spacing: 0) {
+                // 顶部导航栏
                 HStack {
-                    Button("放弃", action: onAbandon).font(.system(size: 16)).foregroundColor(Color(white: 0.6))
+                    Button(action: { showAbandonAlert = true }) {
+                        Text("放弃")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: "#FF3B30"))
+                    }
                     Spacer()
-                    Text("PPT 预览 (\(pages.count)页)").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                    Text("PPT 预览 (\(pages.count)页)")
+                        .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                     Spacer()
                     Button(action: onConvert) {
-                        Text("转化").font(.system(size: 16, weight: .semibold))
+                        Text("生成 PPT")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(pages.isEmpty ? .gray : Color(hex: "#34C759"))
                     }.disabled(pages.isEmpty)
                 }
@@ -620,34 +631,59 @@ struct PPTPreviewView: View {
                                         onRetake: { onRetake(idx) }, onDelete: { onDelete(idx) })
                         }
                     }
-                    .padding(16).padding(.bottom, 80)
+                    .padding(16).padding(.bottom, 100)
                 }
                 Spacer(minLength: 0)
             }
+
+            // 底部操作栏（重新设计）
             VStack {
                 Spacer()
-                HStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    // 从相册选
                     Button(action: onAlbum) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "photo.on.rectangle")
-                            Text("从相册选下一张").font(.system(size: 15, weight: .medium))
+                        VStack(spacing: 6) {
+                            Image(systemName: "photo.on.rectangle.fill")
+                                .font(.system(size: 20))
+                            Text("从相册添加")
+                                .font(.system(size: 13, weight: .medium))
                         }
-                        .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                         .background(Color(hex: "#2C2C2E"))
+                        .cornerRadius(14)
                     }
-                    Divider().frame(width: 1).background(Color.gray.opacity(0.3))
+                    // 拍照
                     Button(action: onCamera) {
-                        HStack(spacing: 8) {
+                        VStack(spacing: 6) {
                             Image(systemName: "camera.fill")
-                            Text("拍下一张").font(.system(size: 15, weight: .medium))
+                                .font(.system(size: 20))
+                            Text("拍下一张")
+                                .font(.system(size: 13, weight: .medium))
                         }
-                        .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(Color(hex: "#3A3A3C"))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(hex: "#34C759"))
+                        .cornerRadius(14)
                     }
                 }
-                .frame(height: 56)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+                .background(
+                    Color(hex: "#1C1C1E")
+                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: -4)
+                )
             }
             .ignoresSafeArea(edges: .bottom)
+        }
+        // 放弃确认弹窗
+        .alert("放弃本次扫描？", isPresented: $showAbandonAlert) {
+            Button("放弃", role: .destructive) { onAbandon() }
+            Button("继续编辑", role: .cancel) {}
+        } message: {
+            Text("已扫描的 \(pages.count) 张图片将全部丢弃，且无法恢复。如需保留，请先完成转化。")
         }
     }
 }
