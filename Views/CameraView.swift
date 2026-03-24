@@ -90,20 +90,26 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
         scanner.delegate = context.coordinator
         context.coordinator.onVCReady       = onVCReady
         context.coordinator.onTextRecognized = onTextRecognized
-        // 不禁用 isUserInteractionEnabled，让 DataScanner 正常工作
-        // 快门按钮通过 ZStack 置顶 + 透明背景保证点击优先级
+
+        // 等 VC 加入视图层级后再 startScanning，不依赖 updateUIViewController 时序
+        // 原因：updateUIViewController 在父视图重渲染时会多次调用，第一次相机还没准备好会抛异常，
+        // 导致 onVCReady 永远不触发，scannerVC 一直为 nil，快门永远失效
+        DispatchQueue.main.async {
+            guard !scanner.isScanning else { return }
+            do {
+                try scanner.startScanning()
+                context.coordinator.onVCReady?(scanner)
+                context.coordinator.onVCReady = nil
+                print("✅ DataScanner 启动成功，scannerVC 已赋值")
+            } catch {
+                print("❌ startScanning 失败：\(error)")
+            }
+        }
         return scanner
     }
 
     func updateUIViewController(_ vc: DataScannerViewController, context: Context) {
-        guard !vc.isScanning else { return }
-        do {
-            try vc.startScanning()
-            context.coordinator.onVCReady?(vc)
-            context.coordinator.onVCReady = nil
-        } catch {
-            print("❌ startScanning 失败：\(error)")
-        }
+        // startScanning 已在 makeUIViewController 的 async 里处理，这里留空
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
