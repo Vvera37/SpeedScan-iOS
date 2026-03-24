@@ -163,34 +163,40 @@ struct CameraView: View {
     // 实时识别到的文字（调试展示）
     @State private var liveText = ""
 
+    // 底部操作区固定高度（工具栏约60 + 快门区约120 = 180）
+    private let bottomBarHeight: CGFloat = 180
+
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { geo in
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            if showDocumentCamera {
-                // 拍PPT：VNDocumentCameraViewController 全屏
-                DocumentCameraRepresentable(
-                    onScanned: { images in
-                        pptBuffer.append(contentsOf: images)
-                        showDocumentCamera = false
-                    },
-                    onDismiss: {
-                        showDocumentCamera = false
-                        if pptBuffer.isEmpty { dismissSafely() }
+                if showDocumentCamera {
+                    // 拍PPT：VNDocumentCameraViewController 全屏
+                    DocumentCameraRepresentable(
+                        onScanned: { images in
+                            pptBuffer.append(contentsOf: images)
+                            showDocumentCamera = false
+                        },
+                        onDismiss: {
+                            showDocumentCamera = false
+                            if pptBuffer.isEmpty { dismissSafely() }
+                        }
+                    )
+                    .ignoresSafeArea()
+                } else {
+                    VStack(spacing: 0) {
+                        topToolbar
+                        // 取景区：严格限高，不侵入底部按钮区
+                        cameraArea(height: geo.size.height - bottomBarHeight - 60)
+                        bottomArea
                     }
-                )
-                .ignoresSafeArea()
-            } else {
-                VStack(spacing: 0) {
-                    topToolbar
-                    cameraArea
-                    bottomArea
                 }
-            }
 
-            // PPT 堆栈缩略图（右下角，无感连拍）
-            if !pptBuffer.isEmpty && !showDocumentCamera {
-                pptStackOverlay
+                // PPT 堆栈缩略图（右下角，无感连拍）
+                if !pptBuffer.isEmpty && !showDocumentCamera {
+                    pptStackOverlay
+                }
             }
         }
         .onAppear { checkCameraPermission() }
@@ -260,9 +266,9 @@ struct CameraView: View {
         .padding(.horizontal, 20).padding(.top, 8).background(Color.black)
     }
 
-    // MARK: 取景区
+    // MARK: 取景区（固定高度，防止 UIKit 视图侵入快门区）
     @ViewBuilder
-    private var cameraArea: some View {
+    private func cameraArea(height: CGFloat) -> some View {
         Group {
             if cameraPermissionDenied {
                 CameraPermissionView()
@@ -270,11 +276,9 @@ struct CameraView: View {
                 DataScannerRepresentable(
                     onVCReady: { vc in scannerVC = vc },
                     onTextRecognized: { text in
-                        // 拍图识字模式下实时更新（可用于未来实时展示）
                         if selectedMode == .scan { liveText = text }
                     }
                 )
-                .ignoresSafeArea(edges: [])
             } else {
                 ZStack {
                     Color.black
@@ -282,7 +286,8 @@ struct CameraView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity).layoutPriority(1)
+        .frame(maxWidth: .infinity, maxHeight: max(height, 200))
+        .clipped()  // 严格裁剪，UIKit 子视图不得超出此区域
     }
 
     // MARK: 底部区域
