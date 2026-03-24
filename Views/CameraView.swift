@@ -324,10 +324,9 @@ struct CameraView: View {
                     .sheet(isPresented: $showPHPicker) {
                         PHPickerRepresentable(
                             onSelected: { images in
+                                // 先切状态，再关 sheet，避免 dismiss 动画期间状态被忽略
+                                handlePicked(images)
                                 showPHPicker = false
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                    handlePicked(images)
-                                }
                             },
                             onDismiss: { showPHPicker = false }
                         )
@@ -447,12 +446,14 @@ struct CameraView: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(selectedMode == mode ? Color.themeGreen : Color.tabInactive)
                     }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
                 }
             }
         }
-        .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
-        .background(Color.black)
+        // 背景只覆盖 tab 文字区域高度，不拦截上方快门按钮的触摸
+        .background(Color.black.allowsHitTesting(false))
     }
 
     // MARK: - 辅助方法
