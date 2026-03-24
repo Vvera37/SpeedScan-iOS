@@ -250,18 +250,17 @@ struct CameraView: View {
 
                 // ── 拍图识字 ─────────────────────────────────────
                 if selectedMode == .scan {
-                    ZStack(alignment: .bottom) {
-                        // 底层：DataScanner（UIKit），禁止触摸，防止拦截快门
-                        scanCameraArea(height: geo.size.height)
-                            .allowsHitTesting(false)
-
-                        // 顶层：SwiftUI 控件
-                        VStack(spacing: 0) {
-                            scanTopToolbar
-                            Spacer()
-                            // 快门 + modeTabBar 放在同一 VStack，彻底避免 Z 层覆盖问题
-                            scanBottomWithTab
-                        }
+                    // 物理隔离：VStack 线性排列，cameraArea 不延伸到按钮下方
+                    // zIndex 明确层级，bottomArea 最高保证响应链优先
+                    VStack(spacing: 0) {
+                        scanTopToolbar
+                            .zIndex(1)
+                        scanCameraArea(height: geo.size.height - 180)
+                            .clipped()
+                            .zIndex(0)
+                        scanBottomWithTab
+                            .background(Color.black)
+                            .zIndex(2)
                     }
                 }
 
@@ -434,13 +433,24 @@ struct CameraView: View {
     }
 
     private func capturePhoto() {
+        print("📸 快门触发，isCapturing=\(isCapturing), scannerVC=\(scannerVC != nil)")
         guard !isCapturing, let vc = scannerVC else { return }
         isCapturing = true
+
+        // 5秒超时保护：防止 capturePhoto 异常后 isCapturing 永久锁死
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            await MainActor.run {
+                if isCapturing { print("⚠️ 快门5秒超时，强制解锁"); isCapturing = false }
+            }
+        }
+
         Task {
             do {
                 let image = try await vc.capturePhoto()
                 await MainActor.run { isCapturing = false; capturedImage = image; dismissSafely() }
             } catch {
+                print("❌ capturePhoto 失败：\(error)")
                 await MainActor.run { isCapturing = false }
             }
         }
