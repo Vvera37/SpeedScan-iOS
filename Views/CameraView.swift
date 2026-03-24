@@ -43,6 +43,9 @@ struct ShutterButton: View {
             }
         }
         .buttonStyle(ScaleButtonStyle2())
+        // 透明背景确保系统响应链能识别到按钮点击区域（专家建议）
+        .background(Color.black.opacity(0.001))
+        .contentShape(Circle().size(CGSize(width: 80, height: 80)))
     }
 }
 private struct ScaleButtonStyle2: ButtonStyle {
@@ -87,9 +90,8 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
         scanner.delegate = context.coordinator
         context.coordinator.onVCReady       = onVCReady
         context.coordinator.onTextRecognized = onTextRecognized
-        // UIKit 视图层禁止触摸，防止拦截 SwiftUI 快门按钮
-        // 注：SwiftUI 的 .allowsHitTesting(false) 对 UIViewControllerRepresentable 内层 UIView 无效
-        scanner.view.isUserInteractionEnabled = false
+        // 不禁用 isUserInteractionEnabled，让 DataScanner 正常工作
+        // 快门按钮通过 ZStack 置顶 + 透明背景保证点击优先级
         return scanner
     }
 
@@ -97,8 +99,6 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
         guard !vc.isScanning else { return }
         do {
             try vc.startScanning()
-            // startScanning() 内部可能重新 enable 交互，必须在它之后再禁用
-            vc.view.isUserInteractionEnabled = false
             context.coordinator.onVCReady?(vc)
             context.coordinator.onVCReady = nil
         } catch {

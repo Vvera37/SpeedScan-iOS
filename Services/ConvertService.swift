@@ -17,7 +17,8 @@ enum ConvertService {
     // MARK: - 图片数组 → PPTX
     static func imagesToPptx(images: [UIImage]) async throws -> URL {
         let base64Images = images.compactMap { img -> String? in
-            guard let data = img.jpegData(compressionQuality: 0.85) else { return nil }
+            // 压缩到 0.5，减小包体提升转换成功率（专家建议）
+            guard let data = img.jpegData(compressionQuality: 0.5) else { return nil }
             return data.base64EncodedString()
         }
         guard !base64Images.isEmpty else {
