@@ -292,12 +292,13 @@ struct CameraView: View {
                     case .preview:
                         PPTPreviewView(
                             pages: $pptPages,
-                            onCamera:  { retakeIndex = nil; showDocumentCamera = true },
-                            onAlbum:   { retakeIndex = nil; openPHPicker() },
-                            onRetake:  { idx in retakeIndex = idx; showDocumentCamera = true },
-                            onDelete:  { idx in deleteTargetIndex = idx },
-                            onConvert: { startConvert() },
-                            onAbandon: { pptPages = []; pptFlow = .guide }
+                            onCamera:       { retakeIndex = nil; showDocumentCamera = true },
+                            onAlbum:        { retakeIndex = nil; openPHPicker() },
+                            onRetake:       { idx in retakeIndex = idx; showDocumentCamera = true },
+                            onAlbumReplace: { idx in retakeIndex = idx; openPHPicker() },
+                            onDelete:       { idx in deleteTargetIndex = idx },
+                            onConvert:      { startConvert() },
+                            onAbandon:      { pptPages = []; pptFlow = .guide }
                         )
 
                     case .converting:
@@ -697,7 +698,9 @@ struct PPTGuideStep: View {
 struct PPTPreviewView: View {
     @Binding var pages: [UIImage]
     let onCamera: () -> Void; let onAlbum: () -> Void
-    let onRetake: (Int) -> Void; let onDelete: (Int) -> Void
+    let onRetake: (Int) -> Void
+    let onAlbumReplace: (Int) -> Void   // 相册替换某页
+    let onDelete: (Int) -> Void
     let onConvert: () -> Void; let onAbandon: () -> Void
 
     @State private var showAbandonAlert = false
@@ -716,7 +719,7 @@ struct PPTPreviewView: View {
                             .foregroundColor(Color(hex: "#FF3B30"))
                     }
                     Spacer()
-                    Text("PPT 预览 (\(pages.count)页)")
+                    Text("PDF 预览 (\(pages.count)页)")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                     Spacer()
                     Button(action: onConvert) {
@@ -730,8 +733,12 @@ struct PPTPreviewView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Array(pages.enumerated()), id: \.offset) { idx, img in
-                            PPTPageTile(image: img, index: idx,
-                                        onRetake: { onRetake(idx) }, onDelete: { onDelete(idx) })
+                            PPTPageTile(
+                                image: img, index: idx,
+                                onRetake: { onRetake(idx) },
+                                onAlbumReplace: { onAlbumReplace(idx) },
+                                onDelete: { onDelete(idx) }
+                            )
                         }
                     }
                     .padding(16).padding(.bottom, 100)
@@ -793,21 +800,20 @@ struct PPTPreviewView: View {
 
 struct PPTPageTile: View {
     let image: UIImage; let index: Int
-    let onRetake: () -> Void; let onDelete: () -> Void
+    let onRetake: () -> Void
+    let onAlbumReplace: () -> Void
+    let onDelete: () -> Void
 
-    // 固定宽高比 3:4（接近 PPT 幻灯片比例），宽度由 Grid 决定，高度固定等比
-    private let tileAspect: CGFloat = 4.0 / 3.0  // height / width
+    private let tileAspect: CGFloat = 4.0 / 3.0
 
     var body: some View {
         VStack(spacing: 6) {
             GeometryReader { geo in
                 ZStack(alignment: .topTrailing) {
-                    // 等比缩放填满固定框，超出部分裁剪，不变形
                     Image(uiImage: image).resizable().scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.width * tileAspect)
                         .clipped()
                         .cornerRadius(8)
-
                     Button(action: onDelete) {
                         ZStack {
                             Circle().fill(Color.black.opacity(0.6)).frame(width: 22, height: 22)
@@ -816,13 +822,30 @@ struct PPTPageTile: View {
                     }.padding(4)
                 }
             }
-            .aspectRatio(1.0 / tileAspect, contentMode: .fit)  // 让 GeometryReader 有固定高度
+            .aspectRatio(1.0 / tileAspect, contentMode: .fit)
 
             Text("第 \(index + 1) 页").font(.system(size: 11, weight: .medium)).foregroundColor(Color(white: 0.7))
-            Button(action: onRetake) {
-                Text("点击重拍").font(.system(size: 11, weight: .medium)).foregroundColor(.white)
+
+            // 两个按钮：重拍 + 相册替换
+            HStack(spacing: 6) {
+                Button(action: onRetake) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "camera").font(.system(size: 10))
+                        Text("重拍").font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 5)
                     .background(Color(white: 0.3)).cornerRadius(5)
+                }
+                Button(action: onAlbumReplace) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "photo").font(.system(size: 10))
+                        Text("相册").font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 5)
+                    .background(Color(white: 0.3)).cornerRadius(5)
+                }
             }
         }
     }

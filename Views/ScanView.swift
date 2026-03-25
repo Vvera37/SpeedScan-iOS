@@ -104,17 +104,8 @@ struct ScanView: View {
         .sheet(isPresented: $showLoginSheet) {
             LoginView(isModal: true).environmentObject(appState)
         }
-        .overlay {
-            if isRecognizing {
-                ZStack {
-                    Color.black.opacity(0.5).ignoresSafeArea()
-                    VStack(spacing: 16) {
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
-                        Text("正在识别文字…").foregroundColor(.white).font(.system(size: 15))
-                    }
-                    .padding(32).background(Color(white: 0.15)).cornerRadius(16)
-                }
-            }
+        .fullScreenCover(isPresented: $isRecognizing) {
+            OCRLoadingView()
         }
         .onChange(of: viewModel.scanResult) { _, result in if result != nil { showResult = true } }
         .onChange(of: appState.showLoginRequired) { _, show in
@@ -145,7 +136,7 @@ struct ScanView: View {
             HStack(spacing: 12) {
                 ScanActionCard(icon: "camera.fill", title: "拍照扫描", subtitle: "拍照识别文字",
                                gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]) { showSystemCamera = true }
-                ScanActionCard(icon: "photo.on.rectangle", title: "相册导入", subtitle: "从图库选择",
+                ScanActionCard(icon: "photo.on.rectangle", title: "相册导入", subtitle: "选图片识别文字，可导出 Word",
                                gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]) { showPHPicker = true }
             }
             ScanActionCardWide(icon: "photo.stack.fill", title: "拍照转 PDF",
@@ -545,6 +536,88 @@ struct ScanPHPickerView: UIViewControllerRepresentable {
                 DispatchQueue.main.async {
                     if let img = obj as? UIImage { self.parent.onSelected(img) }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - OCR 识别中 loading 全屏页
+struct OCRLoadingView: View {
+    @State private var dots = 1
+    @State private var pulse = false
+    private let tips = [
+        "正在分析图片内容…",
+        "识别文字中，请稍候…",
+        "AI 正在努力识别…",
+        "马上就好…"
+    ]
+    @State private var tipIndex = 0
+    private let timer = Timer.publish(every: 1.2, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            Color(hex: "#1C1C1E").ignoresSafeArea()
+            VStack(spacing: 32) {
+                Spacer()
+                // 动态图标
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "#007AFF").opacity(0.15))
+                        .frame(width: 120, height: 120)
+                        .scaleEffect(pulse ? 1.12 : 1.0)
+                        .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulse)
+                    Image(systemName: "text.viewfinder")
+                        .font(.system(size: 52))
+                        .foregroundColor(Color(hex: "#007AFF"))
+                }
+                .onAppear { pulse = true }
+
+                VStack(spacing: 12) {
+                    Text(tips[tipIndex])
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .animation(.easeInOut, value: tipIndex)
+                    Text("通常需要 5–15 秒")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(white: 0.5))
+                }
+
+                // 进度条（模拟进度，让用户感知在走）
+                OCRSimulatedProgressBar()
+                    .padding(.horizontal, 48)
+
+                Spacer()
+            }
+        }
+        .onReceive(timer) { _ in
+            tipIndex = (tipIndex + 1) % tips.count
+        }
+    }
+}
+
+struct OCRSimulatedProgressBar: View {
+    @State private var progress: CGFloat = 0
+    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(white: 0.25))
+                    .frame(height: 4)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(hex: "#007AFF"))
+                    .frame(width: geo.size.width * progress, height: 4)
+                    .animation(.easeInOut(duration: 0.4), value: progress)
+            }
+        }
+        .frame(height: 4)
+        .onReceive(timer) { _ in
+            // 模拟进度：快速到 70%，然后放慢等真实结果
+            if progress < 0.7 {
+                progress = min(progress + 0.08, 0.7)
+            } else if progress < 0.92 {
+                progress = min(progress + 0.015, 0.92)
             }
         }
     }
