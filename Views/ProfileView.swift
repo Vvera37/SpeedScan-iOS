@@ -16,7 +16,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.white.ignoresSafeArea()
+                Color(UIColor.systemBackground).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -82,7 +82,7 @@ struct ProfileView: View {
                                     .foregroundColor(.red)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 16)
-                                    .background(Color.white)
+                                    .background(Color(UIColor.systemBackground))
                                     .cornerRadius(14)
                             }
                             .padding(.horizontal, 20)
@@ -173,7 +173,7 @@ struct UserInfoCard: View {
                 }
             }
             .padding(20)
-            .background(Color.white)
+            .background(Color(UIColor.systemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
@@ -393,7 +393,7 @@ struct SubscriptionCard: View {
 
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 5)
     }
@@ -501,7 +501,7 @@ struct MenuSection<Content: View>: View {
             VStack(spacing: 0) {
                 content
             }
-            .background(Color.white)
+            .background(Color(UIColor.systemBackground))
             .cornerRadius(14)
             .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         }

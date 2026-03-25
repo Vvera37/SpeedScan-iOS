@@ -21,7 +21,7 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.white.ignoresSafeArea()
+                Color(UIColor.systemBackground).ignoresSafeArea()
 
                 if !appState.isLoggedIn {
                     // 未登录空态
@@ -66,7 +66,7 @@ struct HistoryView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.white)
+                .background(Color(UIColor.systemBackground))
             }
             .quickLookPreview($quickLookURL)
         }
@@ -143,7 +143,7 @@ struct HistoryCardRow: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(14)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }

@@ -64,7 +64,7 @@ struct OCRResultView: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                         }
-                        .background(Color.white)
+                        .background(Color(UIColor.systemBackground))
                         .cornerRadius(16)
                         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
                         .padding(.horizontal, 20)
@@ -116,7 +116,7 @@ struct OCRResultView: View {
                     .disabled(isExporting)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 14)
-                .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
+                .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
             }
             .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("识别结果")

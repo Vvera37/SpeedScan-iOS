@@ -249,7 +249,7 @@ struct SinglePageTextCard: View {
             SelectableTextView(rawText: rawText, contentHeight: .constant(0))
                 .padding(16)
         }
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
@@ -273,7 +273,7 @@ struct PageCell: View {
             SelectableTextView(rawText: page.content, contentHeight: .constant(0))
                 .padding(14)
         }
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(14)
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 3)
     }
@@ -299,7 +299,7 @@ struct ThumbnailHeaderView: View {
             Spacer()
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
@@ -391,7 +391,7 @@ struct BottomActionBar: View {
             .disabled(isExporting)
         }
         .padding(.horizontal, 20).padding(.vertical, 14)
-        .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
+        .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
     }
 }
 

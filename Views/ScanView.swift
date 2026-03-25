@@ -39,7 +39,7 @@ struct ScanView: View {
     // MARK: - 主内容拆分（避免 body 类型推断超时）
     private var scanContentView: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color(UIColor.systemBackground).ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     scanHeaderView
@@ -433,7 +433,7 @@ struct ProcessingCard: View {
             Spacer()
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         .onReceive(timer) { _ in
@@ -482,7 +482,7 @@ struct RecentRecordRow: View {
                 .foregroundColor(Color.secondary.opacity(0.5))
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(14)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }
