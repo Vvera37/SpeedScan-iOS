@@ -104,10 +104,14 @@ struct ScanView: View {
         .sheet(isPresented: $showLoginSheet) {
             LoginView(isModal: true).environmentObject(appState)
         }
-        .fullScreenCover(isPresented: $isRecognizing) {
-            OCRLoadingView()
+        // loading 用 overlay 不用 fullScreenCover，避免多个 cover 同时触发冲突
+        .overlay {
+            if isRecognizing {
+                OCRLoadingView()
+                    .ignoresSafeArea()
+            }
         }
-        .onChange(of: viewModel.scanResult) { _, result in if result != nil { showResult = true } }
+        // showResult 由 startOCR 手动触发（延迟0.1s避免cover冲突），不再用 onChange 自动触发
         .onChange(of: appState.showLoginRequired) { _, show in
             if show { showLoginSheet = true; appState.showLoginRequired = false }
         }
@@ -211,13 +215,15 @@ struct ScanView: View {
             if let localResult = await tryLocalOCR(image: image),
                localResult.confidence >= 0.82,
                localResult.text.count >= 15 {
-                // 印刷体：走原有 ScanResultView 流程
+                // 印刷体：走 ScanResultView 流程
+                // 先关 loading，等下一帧再弹结果页，避免两个 cover 同帧冲突
                 await MainActor.run {
                     isRecognizing = false
                     viewModel.selectedImage = image
                     viewModel.scanResult = localResult.ocrResult
-                    // showResult 由 onChange(of: viewModel.scanResult) 触发
                 }
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                await MainActor.run { showResult = true }
                 return
             }
 
