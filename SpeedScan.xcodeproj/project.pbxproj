@@ -26,7 +26,7 @@
 		A1000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000017 /* Assets.xcassets */; };
 		A1000018 /* test-ocr-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000019 /* test-ocr-image.jpg */; };
 		A1000019 /* test-ocr-pdf.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B1000020 /* test-ocr-pdf.pdf */; };
-		A1000020 /* test-ocr-image2.jpg in Sources */ = {isa = PBXBuildFile; fileRef = B1000021 /* test-ocr-image2.jpg */; };
+
 		BFA6101D2F721C57000C465E /* test-ocr-image2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000021 /* test-ocr-image2.jpg */; };
 		BFA6101F2F721D3E000C465E /* ConvertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6101E2F721D3E000C465E /* ConvertService.swift */; };
 		BFA6102A2F721D3E000C465E /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6102B2F721D3E000C465E /* OCRService.swift */; };
@@ -262,7 +262,7 @@
 				A1000010 /* ScanRecord.swift in Sources */,
 				A1000011 /* AuthService.swift in Sources */,
 				A1000012 /* DocxExporter.swift in Sources */,
-				A1000020 /* test-ocr-image2.jpg in Sources */,
+
 				A1000013 /* KeychainService.swift in Sources */,
 				A1000014 /* SubscriptionManager.swift in Sources */,
 				A1000015 /* ImagePicker.swift in Sources */,

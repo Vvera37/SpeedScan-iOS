@@ -288,16 +288,6 @@ struct ScanView: View {
         }
     }
 
-    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
-        let size = image.size
-        guard max(size.width, size.height) > maxDimension else { return image }
-        let scale = maxDimension / max(size.width, size.height)
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        return UIGraphicsImageRenderer(size: newSize).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
-    }
-
     private func handlePDFImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
