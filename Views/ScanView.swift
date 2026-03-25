@@ -11,6 +11,7 @@ import PhotosUI
 struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var showPHPicker = false
     @State private var showSystemCamera = false      // 拍照识字：直接弹系统相机
     @State private var showPPTCamera = false         // 拍PPT：走 CameraView（VNDocumentCamera）
@@ -22,6 +23,7 @@ struct ScanView: View {
     // OCR 结果页（Claude Vision）
     @State private var isRecognizing = false
     @State private var ocrResult: String? = nil
+    @State private var ocrImage: UIImage? = nil
     @State private var ocrError: String? = nil
     @State private var showOCRResult = false
 
@@ -79,10 +81,16 @@ struct ScanView: View {
         // OCR 结果页
         .fullScreenCover(isPresented: $showOCRResult) {
             if let text = ocrResult {
-                OCRResultView(initialText: text, onDismiss: {
-                    showOCRResult = false
-                    ocrResult = nil
-                })
+                OCRResultView(
+                    initialText: text,
+                    originalImage: ocrImage ?? UIImage(),
+                    onDismiss: {
+                        showOCRResult = false
+                        ocrResult = nil
+                        ocrImage = nil
+                    }
+                )
+                .environmentObject(subscriptionManager)
             }
         }
         // 拍PPT
@@ -204,9 +212,28 @@ struct ScanView: View {
 
     private func startOCR(image: UIImage) {
         isRecognizing = true
+        ocrImage = image
         Task {
+            // 第一步：先跑本地 Vision OCR（毫秒级，免费）
+            // 判断逻辑：置信度 >= 0.82 且识别到 >= 15 个字符 → 印刷体，直接走本地结果
+            // 否则 → 手写/模糊，切 Claude Vision
+            if let localResult = await tryLocalOCR(image: image),
+               localResult.confidence >= 0.82,
+               localResult.text.count >= 15 {
+                // 印刷体：走原有 ScanResultView 流程
+                await MainActor.run {
+                    isRecognizing = false
+                    viewModel.selectedImage = image
+                    viewModel.scanResult = localResult.ocrResult
+                    // showResult 由 onChange(of: viewModel.scanResult) 触发
+                }
+                return
+            }
+
+            // 手写/低置信度：走 Claude Vision
+            let compressed = resizeImage(image, maxDimension: 1500)
             do {
-                let text = try await OCRService.recognizeHandwriting(image: image)
+                let text = try await OCRService.recognizeHandwriting(image: compressed)
                 await MainActor.run {
                     isRecognizing = false
                     ocrResult = text
@@ -218,6 +245,56 @@ struct ScanView: View {
                     ocrError = error.localizedDescription
                 }
             }
+        }
+    }
+
+    // 本地 Vision OCR 预检，返回置信度和文字
+    private func tryLocalOCR(image: UIImage) async -> (text: String, confidence: Double, ocrResult: OCRResult)? {
+        guard let cgImage = image.cgImage else { return nil }
+        var request = RecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        request.recognitionLanguages = [
+            Locale.Language(identifier: "zh-Hans"),
+            Locale.Language(identifier: "zh-Hant"),
+            Locale.Language(identifier: "en-US")
+        ]
+        request.automaticallyDetectsLanguage = true
+        guard let observations = try? await request.perform(on: cgImage, orientation: .up),
+              !observations.isEmpty else { return nil }
+
+        let totalConf = observations.compactMap { $0.topCandidates(1).first?.confidence }.reduce(0, +)
+        let avgConf = Double(totalConf / Float(observations.count))
+        let text = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+
+        let result = OCRResult(
+            originalImage: image,
+            recognizedText: text,
+            detectedLanguage: "zh-Hans",
+            confidence: avgConf,
+            timestamp: Date(),
+            pages: []
+        )
+        return (text, avgConf, result)
+    }
+
+    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        guard max(size.width, size.height) > maxDimension else { return image }
+        let scale = maxDimension / max(size.width, size.height)
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        return UIGraphicsImageRenderer(size: newSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+
+    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        guard max(size.width, size.height) > maxDimension else { return image }
+        let scale = maxDimension / max(size.width, size.height)
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        return UIGraphicsImageRenderer(size: newSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 

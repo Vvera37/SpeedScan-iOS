@@ -3,50 +3,120 @@
 //  SpeedScan
 //
 //  Claude Vision 识别结果页
-//  UI 风格与 ScanResultView 保持一致：白底卡片 + NavigationStack + 底部操作栏
-//  支持用户直接编辑修改错别字
+//  UI 风格与 ScanResultView 保持一致
+//  支持用户直接编辑修改错别字，可复制、导出 Word
 //
 
 import SwiftUI
+import SwiftData
 
 struct OCRResultView: View {
     let initialText: String
+    let originalImage: UIImage
     var onDismiss: () -> Void
+
+    @EnvironmentObject var appState: AppState
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @Environment(\.modelContext) private var modelContext
 
     @State private var editedText: String = ""
     @State private var copySuccess = false
+    @State private var isExporting = false
+    @State private var showLoginSheet = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // ── 可滚动内容区
+                // ── 滚动区（外滑动，不做内层 TextEditor 滚动）
                 ScrollView {
-                    LazyVStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 16) {
 
-                        // 顶部 Header（复用 ScanResultView 同款）
-                        OCRResultHeaderView()
+                        // 顶部缩略图 Header（复用 ScanResultView 同款）
+                        ThumbnailHeaderView(image: originalImage)
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
 
-                        // 文字编辑卡片
-                        OCREditableTextCard(editedText: $editedText)
-                            .padding(.horizontal, 20)
+                        // 文字内容（Text 展示 + TextEditor 叠加，外层滚动）
+                        VStack(alignment: .leading, spacing: 0) {
+                            // 只保留字数，去掉多余标题行
+                            HStack {
+                                Text("\(editedText.count) 字")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Label("可编辑", systemImage: "pencil")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+
+                            Divider().padding(.horizontal, 16)
+
+                            // TextEditor 高度跟随内容，配合外层 ScrollView 实现外滑动
+                            TextEditor(text: $editedText)
+                                .font(.system(size: 14, design: .monospaced))
+                                .foregroundColor(.primary)
+                                .scrollContentBackground(.hidden)
+                                .background(Color.clear)
+                                .scrollDisabled(true)        // 禁止内滚动，交给外层 ScrollView
+                                .frame(minHeight: 200)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                        }
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                        .padding(.horizontal, 20)
 
                         Spacer(minLength: 100)
                     }
                 }
 
-                // ── 底部操作栏（复用 ScanResultView 同款样式）
-                OCRBottomActionBar(
-                    onCopy: {
-                        UIPasteboard.general.string = editedText
-                        withAnimation { copySuccess = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            withAnimation { copySuccess = false }
+                // ── 底部操作栏（复制 + 导出 Word，与 ScanResultView 一致）
+                HStack(spacing: 12) {
+                    Button(action: copyText) {
+                        HStack(spacing: 8) {
+                            Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc")
+                                .font(.system(size: 16))
+                            Text(copySuccess ? "已复制" : "复制全文")
+                                .font(.system(size: 15, weight: .medium))
                         }
-                    },
-                    copySuccess: copySuccess
-                )
+                        .foregroundColor(Color(hex: "#007AFF"))
+                        .padding(.vertical, 14).padding(.horizontal, 16)
+                        .background(Color(hex: "#007AFF").opacity(0.1))
+                        .cornerRadius(12)
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: copySuccess)
+
+                    Button(action: exportWord) {
+                        HStack(spacing: 8) {
+                            if isExporting {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "doc.text").font(.system(size: 16))
+                            }
+                            Text(isExporting ? "生成中…" : "导出 Word")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            isExporting ? AnyView(Color.gray) :
+                            AnyView(LinearGradient(
+                                colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                startPoint: .leading, endPoint: .trailing
+                            ))
+                        )
+                        .cornerRadius(12)
+                    }
+                    .disabled(isExporting)
+                }
+                .padding(.horizontal, 20).padding(.vertical, 14)
+                .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
             }
             .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("识别结果")
@@ -56,103 +126,63 @@ struct OCRResultView: View {
                     Button("完成") { onDismiss() }
                 }
             }
+            .sheet(isPresented: $showLoginSheet) {
+                LoginView(isModal: true).environmentObject(appState)
+            }
         }
-        .onAppear {
-            editedText = initialText
+        .onAppear { editedText = initialText }
+    }
+
+    private func copyText() {
+        UIPasteboard.general.string = editedText
+        withAnimation { copySuccess = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { copySuccess = false }
         }
     }
-}
 
-// MARK: - 顶部 Header
-struct OCRResultHeaderView: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#007AFF").opacity(0.1))
-                    .frame(width: 80, height: 80)
-                Image(systemName: "text.viewfinder")
-                    .font(.system(size: 36))
-                    .foregroundColor(Color(hex: "#007AFF"))
+    private func exportWord() {
+        guard appState.requireLoginForExport() else { showLoginSheet = true; return }
+        guard !isExporting else { return }
+        isExporting = true
+        let isPremium = subscriptionManager.isPremium
+        let text = editedText
+        Task {
+            let filePath = await Task.detached(priority: .userInitiated) {
+                DocxExporter.export(text: text, isPremium: isPremium, fileName: "ScanResult")
+            }.value
+            await MainActor.run {
+                isExporting = false
+                guard let path = filePath else { return }
+                let fileSize = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
+                modelContext.insert(ScanRecord(
+                    wordFilePath: path, wordFileSize: fileSize,
+                    textPreview: String(text.prefix(200)),
+                    detectedLanguage: "zh-Hans"
+                ))
+                try? modelContext.save()
+                shareFile(url: URL(fileURLWithPath: path))
             }
-            VStack(alignment: .leading, spacing: 8) {
-                Text("识别完成").font(.system(size: 17, weight: .semibold))
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.system(size: 15))
-                    Text("可直接点击编辑修改错别字")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                }
-            }
-            Spacer()
         }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
-}
 
-// MARK: - 可编辑文字卡片
-struct OCREditableTextCard: View {
-    @Binding var editedText: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("识别内容").font(.system(size: 14, weight: .semibold)).foregroundColor(.secondary)
-                Spacer()
-                Label("可编辑", systemImage: "pencil")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
-            }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-
-            Divider().padding(.horizontal, 16)
-
-            TextEditor(text: $editedText)
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundColor(.primary)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .frame(minHeight: 200)
-                .padding(16)
+    private func shareFile(url: URL) {
+        let ac = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.windows.first?.rootViewController {
+            var top = root
+            while let presented = top.presentedViewController { top = presented }
+            top.present(ac, animated: true)
         }
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-    }
-}
-
-// MARK: - 底部操作栏
-struct OCRBottomActionBar: View {
-    let onCopy: () -> Void
-    let copySuccess: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onCopy) {
-                HStack(spacing: 8) {
-                    Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc")
-                        .font(.system(size: 16))
-                    Text(copySuccess ? "已复制" : "复制全文")
-                        .font(.system(size: 15, weight: .medium))
-                }
-                .foregroundColor(Color(hex: "#007AFF"))
-                .padding(.vertical, 14)
-                .frame(maxWidth: .infinity)
-                .background(Color(hex: "#007AFF").opacity(0.1))
-                .cornerRadius(12)
-            }
-            .animation(.easeInOut(duration: 0.2), value: copySuccess)
-        }
-        .padding(.horizontal, 20).padding(.vertical, 14)
-        .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
     }
 }
 
 #Preview {
-    OCRResultView(initialText: "这是一段手写识别的示例文字\n第二行内容\n第三行，可以直接编辑", onDismiss: {})
+    OCRResultView(
+        initialText: "这是一段手写识别的示例文字\n第二行内容\n第三行，可以直接编辑",
+        originalImage: UIImage(systemName: "doc.text.viewfinder") ?? UIImage(),
+        onDismiss: {}
+    )
+    .environmentObject(AppState())
+    .environmentObject(SubscriptionManager())
 }
