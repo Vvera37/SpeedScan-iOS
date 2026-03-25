@@ -246,6 +246,7 @@ struct CameraView: View {
     @State private var convertTimer: Timer? = nil
     @State private var convertResultURL: URL? = nil
     @State private var showShareSheet = false
+    @State private var showPDFDoneAlert = false   // 生成成功确认弹窗
     @State private var convertError: String? = nil
     @State private var toastMessage: String? = nil
 
@@ -345,6 +346,21 @@ struct CameraView: View {
         )) {
             Button("好", role: .cancel) { convertError = nil }
         } message: { Text(convertError ?? "") }
+        // PDF 生成成功确认弹窗
+        .alert("PDF 已生成", isPresented: $showPDFDoneAlert) {
+            Button("重新生成") {
+                // 保留页面，让用户可以继续修改后再生成
+                showPDFDoneAlert = false
+            }
+            Button("好的，分享文件") {
+                showPDFDoneAlert = false
+                showShareSheet = true
+                // 分享完后回到预览页（或关闭）
+                pptFlow = .preview
+            }
+        } message: {
+            Text("PDF 文件已成功生成，可直接分享或存储到文件。\n如需调整页面，可重新生成。")
+        }
         .onAppear { checkCameraPermission() }
     }
 
@@ -443,22 +459,22 @@ struct CameraView: View {
         guard !isCapturing, let vc = scannerVC else { return }
         isCapturing = true
 
-        // 5秒超时保护：防止 capturePhoto 异常后 isCapturing 永久锁死
-        Task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            await MainActor.run {
-                if isCapturing { print("⚠️ 快门5秒超时，强制解锁"); isCapturing = false }
-            }
-        }
+        // 方案：先 stopScanning 释放 AVSession，截取当前 DataScanner view 画面作为拍摄结果。
+        // 背景：capturePhoto() 在 DataScanner 扫描中调用会触发 AVFoundationErrorDomain -11800，
+        // 原因是底层 AVCaptureSession 被 DataScanner 独占，capturePhoto 内部再去开 session 会冲突。
+        // 截图方案与 capturePhoto 结果等价（DataScanner 预览就是实时相机画面）。
+        vc.stopScanning()
 
-        Task {
-            do {
-                let image = try await vc.capturePhoto()
-                await MainActor.run { isCapturing = false; capturedImage = image; dismissSafely() }
-            } catch {
-                print("❌ capturePhoto 失败：\(error)")
-                await MainActor.run { isCapturing = false }
+        // 等 100ms：让 DataScanner overlay（蓝色识别框）消失后再截图，避免 OCR 识别到框线
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let renderer = UIGraphicsImageRenderer(bounds: vc.view.bounds)
+            let image = renderer.image { _ in
+                vc.view.drawHierarchy(in: vc.view.bounds, afterScreenUpdates: true)
             }
+            print("✅ 截图成功，size=\(image.size)")
+            self.isCapturing = false
+            self.capturedImage = image
+            self.dismissSafely()
         }
     }
 
@@ -503,9 +519,13 @@ struct CameraView: View {
                     try await ConvertService.imagesToPdf(images: self.pptPages)
                 }
                 await MainActor.run {
-                    self.stopTimer(); self.convertProgress = 1.0; self.convertResultURL = url
+                    self.stopTimer()
+                    self.convertProgress = 1.0
+                    self.convertResultURL = url
+                    // 进度跑完后 0.5s 再弹确认弹窗，视觉上有个完成感
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.showShareSheet = true; self.pptFlow = .preview
+                        self.pptFlow = .preview
+                        self.showPDFDoneAlert = true
                     }
                 }
             } catch is CancellationError {
