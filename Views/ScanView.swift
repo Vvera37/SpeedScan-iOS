@@ -105,10 +105,12 @@ struct ScanView: View {
             LoginView(isModal: true).environmentObject(appState)
         }
         // loading 用 overlay 不用 fullScreenCover，避免多个 cover 同时触发冲突
+        // colorScheme(.dark) 隔离深色环境，防止影响外层 Color.primary 解析
         .overlay {
             if isRecognizing {
                 OCRLoadingView()
                     .ignoresSafeArea()
+                    .colorScheme(.dark)
             }
         }
         // showResult 由 startOCR 手动触发（延迟0.1s避免cover冲突），不再用 onChange 自动触发
