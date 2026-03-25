@@ -2,7 +2,9 @@
 //  OCRResultView.swift
 //  SpeedScan
 //
-//  识别结果页：显示 Claude 识别文字，支持用户直接编辑修改错别字，可复制
+//  Claude Vision 识别结果页
+//  UI 风格与 ScanResultView 保持一致：白底卡片 + NavigationStack + 底部操作栏
+//  支持用户直接编辑修改错别字
 //
 
 import SwiftUI
@@ -12,86 +14,145 @@ struct OCRResultView: View {
     var onDismiss: () -> Void
 
     @State private var editedText: String = ""
-    @State private var showCopiedToast = false
+    @State private var copySuccess = false
 
     var body: some View {
-        ZStack {
-            Color(hex: "#1C1C1E").ignoresSafeArea()
-
+        NavigationStack {
             VStack(spacing: 0) {
-                // ── 顶部导航栏
-                HStack {
-                    Button("关闭") { onDismiss() }
-                        .font(.system(size: 16))
-                        .foregroundColor(.gray)
-                    Spacer()
-                    Text("识别结果")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                    Spacer()
-                    Button("复制") { copyText() }
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color(hex: "#34C759"))
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .background(Color(hex: "#2C2C2E"))
+                // ── 可滚动内容区
+                ScrollView {
+                    LazyVStack(spacing: 16) {
 
-                // ── 提示语
-                HStack(spacing: 6) {
-                    Image(systemName: "pencil.circle")
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
-                    Text("识别结果可直接点击编辑修改")
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color(hex: "#1C1C1E"))
+                        // 顶部 Header（复用 ScanResultView 同款）
+                        OCRResultHeaderView()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
 
-                // ── 可编辑文本区域
-                TextEditor(text: $editedText)
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-                    .scrollContentBackground(.hidden)
-                    .background(Color(hex: "#1C1C1E"))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
+                        // 文字编辑卡片
+                        OCREditableTextCard(editedText: $editedText)
+                            .padding(.horizontal, 20)
+
+                        Spacer(minLength: 100)
+                    }
+                }
+
+                // ── 底部操作栏（复用 ScanResultView 同款样式）
+                OCRBottomActionBar(
+                    onCopy: {
+                        UIPasteboard.general.string = editedText
+                        withAnimation { copySuccess = true }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            withAnimation { copySuccess = false }
+                        }
+                    },
+                    copySuccess: copySuccess
+                )
             }
-
-            // ── 复制成功 Toast
-            if showCopiedToast {
-                VStack {
-                    Spacer()
-                    Text("已复制到剪贴板 ✓")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color.black.opacity(0.78))
-                        .cornerRadius(24)
-                        .padding(.bottom, 60)
+            .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("识别结果")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("完成") { onDismiss() }
                 }
-                .transition(.opacity)
-                .allowsHitTesting(false)
             }
         }
         .onAppear {
             editedText = initialText
         }
     }
+}
 
-    private func copyText() {
-        UIPasteboard.general.string = editedText
-        withAnimation { showCopiedToast = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation { showCopiedToast = false }
+// MARK: - 顶部 Header
+struct OCRResultHeaderView: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(hex: "#007AFF").opacity(0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "text.viewfinder")
+                    .font(.system(size: 36))
+                    .foregroundColor(Color(hex: "#007AFF"))
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("识别完成").font(.system(size: 17, weight: .semibold))
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 15))
+                    Text("可直接点击编辑修改错别字")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer()
         }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+// MARK: - 可编辑文字卡片
+struct OCREditableTextCard: View {
+    @Binding var editedText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("识别内容").font(.system(size: 14, weight: .semibold)).foregroundColor(.secondary)
+                Spacer()
+                Label("可编辑", systemImage: "pencil")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+
+            Divider().padding(.horizontal, 16)
+
+            TextEditor(text: $editedText)
+                .font(.system(size: 14, design: .monospaced))
+                .foregroundColor(.primary)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
+                .frame(minHeight: 200)
+                .padding(16)
+        }
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+// MARK: - 底部操作栏
+struct OCRBottomActionBar: View {
+    let onCopy: () -> Void
+    let copySuccess: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onCopy) {
+                HStack(spacing: 8) {
+                    Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc")
+                        .font(.system(size: 16))
+                    Text(copySuccess ? "已复制" : "复制全文")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                .foregroundColor(Color(hex: "#007AFF"))
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity)
+                .background(Color(hex: "#007AFF").opacity(0.1))
+                .cornerRadius(12)
+            }
+            .animation(.easeInOut(duration: 0.2), value: copySuccess)
+        }
+        .padding(.horizontal, 20).padding(.vertical, 14)
+        .background(Color.white.shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
     }
 }
 
 #Preview {
-    OCRResultView(initialText: "这是一段手写识别的示例文字\n第二行内容", onDismiss: {})
+    OCRResultView(initialText: "这是一段手写识别的示例文字\n第二行内容\n第三行，可以直接编辑", onDismiss: {})
 }
