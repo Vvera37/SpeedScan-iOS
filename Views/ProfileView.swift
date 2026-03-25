@@ -93,7 +93,7 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("我的")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showLoginSheet) {
                 LoginView(isModal: true).environmentObject(appState)
             }
