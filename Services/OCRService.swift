@@ -43,7 +43,6 @@ enum OCRService {
         }
         return text
     }
-}
 
     private static func resizeIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
         let size = image.size
