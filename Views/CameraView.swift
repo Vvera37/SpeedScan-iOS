@@ -230,7 +230,7 @@ struct CameraView: View {
     var onPPTDone: (([UIImage]) -> Void)?
 
     @State private var scannerVC: DataScannerViewController? = nil
-    @State private var selectedMode: CaptureMode = .scan
+    @State private var selectedMode: CaptureMode = .ppt  // 从 ScanView 进来只用于拍PPT
     @State private var cameraPermissionDenied = false
     @State private var isCapturing = false
 

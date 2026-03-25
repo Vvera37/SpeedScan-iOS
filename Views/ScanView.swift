@@ -11,16 +11,19 @@ import PhotosUI
 struct ScanView: View {
     @StateObject private var viewModel = ScanViewModel()
     @EnvironmentObject var appState: AppState
-    @State private var showPHPicker = false          // 换成 PHPicker，替代旧 UIImagePickerController
-    @State private var showCameraView = false
+    @State private var showPHPicker = false
+    @State private var showSystemCamera = false      // 拍照识字：直接弹系统相机
+    @State private var showPPTCamera = false         // 拍PPT：走 CameraView（VNDocumentCamera）
     @State private var showDocumentPicker = false
     @State private var isConvertingPPT = false
     @State private var pptConvertError: String? = nil
-    #if DEBUG
-    @State private var showDebugTestPDF = false
-    #endif
     @State private var showResult = false
     @State private var showLoginSheet = false
+    // OCR 结果页（Claude Vision）
+    @State private var isRecognizing = false
+    @State private var ocrResult: String? = nil
+    @State private var ocrError: String? = nil
+    @State private var showOCRResult = false
 
     // 最近记录（SwiftData）
     @Query(sort: \ScanRecord.createdAt, order: .reverse) private var recentRecords: [ScanRecord]
@@ -55,7 +58,28 @@ struct ScanView: View {
         .sheet(isPresented: $showPHPicker) {
             ScanPHPickerView(selectedImage: $viewModel.selectedImage, isPresented: $showPHPicker)
         }
-        .fullScreenCover(isPresented: $showCameraView) { cameraViewContent }
+        // 拍照识字：系统相机
+        .fullScreenCover(isPresented: $showSystemCamera) {
+            SystemCameraView(
+                onPhoto: { image in
+                    showSystemCamera = false
+                    startOCR(image: image)
+                },
+                onDismiss: { showSystemCamera = false }
+            )
+            .ignoresSafeArea()
+        }
+        // OCR 结果页
+        .fullScreenCover(isPresented: $showOCRResult) {
+            if let text = ocrResult {
+                OCRResultView(initialText: text, onDismiss: {
+                    showOCRResult = false
+                    ocrResult = nil
+                })
+            }
+        }
+        // 拍PPT
+        .fullScreenCover(isPresented: $showPPTCamera) { pptCameraContent }
         .fileImporter(isPresented: $showDocumentPicker, allowedContentTypes: [.pdf], allowsMultipleSelection: false) { handlePDFImport($0) }
         .fullScreenCover(isPresented: $showResult) {
             if let result = viewModel.scanResult {
@@ -64,6 +88,18 @@ struct ScanView: View {
         }
         .sheet(isPresented: $showLoginSheet) {
             LoginView(isModal: true).environmentObject(appState)
+        }
+        .overlay {
+            if isRecognizing {
+                ZStack {
+                    Color.black.opacity(0.5).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
+                        Text("正在识别文字…").foregroundColor(.white).font(.system(size: 15))
+                    }
+                    .padding(32).background(Color(white: 0.15)).cornerRadius(16)
+                }
+            }
         }
         .onChange(of: viewModel.selectedImage) { _, newImage in
             guard newImage != nil else { return }
@@ -77,6 +113,9 @@ struct ScanView: View {
         .onChange(of: appState.showLoginRequired) { _, show in
             if show { showLoginSheet = true; appState.showLoginRequired = false }
         }
+        .alert("识别失败", isPresented: .init(get: { ocrError != nil }, set: { if !$0 { ocrError = nil } })) {
+            Button("好", role: .cancel) { ocrError = nil }
+        } message: { Text(ocrError ?? "") }
         .alert(item: $viewModel.alertItem) { alert in
             Alert(title: alert.title, message: alert.message, dismissButton: alert.dismissButton)
         }
@@ -97,11 +136,14 @@ struct ScanView: View {
     private var scanActionCards: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                ScanActionCard(icon: "camera.fill", title: "拍照扫描", subtitle: "实时拍摄识别",
-                               gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]) { showCameraView = true }
+                ScanActionCard(icon: "camera.fill", title: "拍照扫描", subtitle: "拍照识别文字",
+                               gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]) { showSystemCamera = true }
                 ScanActionCard(icon: "photo.on.rectangle", title: "相册导入", subtitle: "从图库选择",
                                gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]) { showPHPicker = true }
             }
+            ScanActionCardWide(icon: "photo.stack.fill", title: "拍照转 PDF",
+                               subtitle: "多张拍摄，一键合并为 PDF 文件",
+                               gradient: [Color(hex: "#5856D6"), Color(hex: "#3634A3")]) { showPPTCamera = true }
             ScanActionCardWide(icon: "doc.richtext.fill", title: "PDF 转 Word",
                                subtitle: "导入 PDF，一键转为可编辑 Word 文档",
                                gradient: [Color(hex: "#FF9500"), Color(hex: "#CC7700")]) { showDocumentPicker = true }
@@ -135,12 +177,13 @@ struct ScanView: View {
         }
     }
 
-    private var cameraViewContent: some View {
+    // 拍PPT 入口（CameraView 只保留 PPT 流程）
+    private var pptCameraContent: some View {
         CameraView(
             capturedImage: $viewModel.selectedImage,
-            onDismiss: { showCameraView = false },
+            onDismiss: { showPPTCamera = false },
             onPPTDone: { pages in
-                showCameraView = false
+                showPPTCamera = false
                 guard !pages.isEmpty else { return }
                 isConvertingPPT = true
                 Task {
@@ -158,6 +201,25 @@ struct ScanView: View {
                 }
             }
         )
+    }
+
+    private func startOCR(image: UIImage) {
+        isRecognizing = true
+        Task {
+            do {
+                let text = try await OCRService.recognizeHandwriting(image: image)
+                await MainActor.run {
+                    isRecognizing = false
+                    ocrResult = text
+                    showOCRResult = true
+                }
+            } catch {
+                await MainActor.run {
+                    isRecognizing = false
+                    ocrError = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func handlePDFImport(_ result: Result<[URL], Error>) {
