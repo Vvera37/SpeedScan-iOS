@@ -239,6 +239,7 @@ struct CameraView: View {
     @State private var ocrResult: String? = nil
     @State private var ocrError: String? = nil
     @State private var showOCRResult = false
+    @State private var showSystemCamera = false  // 系统相机拍照
 
     @State private var pptFlow: PPTFlowState = .guide
     @State private var pptPages: [UIImage] = []
@@ -322,6 +323,19 @@ struct CameraView: View {
                             showPDFDoneAlert = true
                         }
                     }
+                }
+
+                // ── 系统相机拍照（UIImagePickerController）──────────
+                if showSystemCamera {
+                    SystemCameraView(
+                        onPhoto: { image in
+                            showSystemCamera = false
+                            startOCR(image: image)
+                        },
+                        onDismiss: { showSystemCamera = false }
+                    )
+                    .ignoresSafeArea()
+                    .zIndex(9)
                 }
 
                 // ── OCR 识别中 loading ────────────────────────────
@@ -508,37 +522,9 @@ struct CameraView: View {
     }
 
     private func capturePhoto() {
-        print("📸 快门触发，isCapturing=\(isCapturing), scannerVC=\(scannerVC != nil)")
-        guard !isCapturing, let vc = scannerVC else { return }
-        isCapturing = true
-
-        // capturePhoto() 设计为在 scanning 状态下直接调用，不需要 stopScanning
-        // 之前 stopScanning 反而导致相机帧停了，拍到空图
-        Task {
-            do {
-                let image = try await vc.capturePhoto()
-                print("✅ capturePhoto 成功，size=\(image.size)")
-                await MainActor.run {
-                    self.isCapturing = false
-                    self.startOCR(image: image)
-                }
-            } catch {
-                print("❌ capturePhoto 失败：\(error)，尝试截图兜底")
-                // 兜底：capturePhoto 失败时截当前视图（此时扫描还在跑，画面有内容）
-                await MainActor.run {
-                    let renderer = UIGraphicsImageRenderer(bounds: vc.view.bounds)
-                    let fallback = renderer.image { _ in
-                        vc.view.drawHierarchy(in: vc.view.bounds, afterScreenUpdates: false)
-                    }
-                    self.isCapturing = false
-                    if fallback.size.width > 0 {
-                        self.startOCR(image: fallback)
-                    } else {
-                        self.ocrError = "拍照失败，请重试"
-                    }
-                }
-            }
-        }
+        // DataScanner 的 capturePhoto() 在各机型上不稳定
+        // 改为弹系统相机：用户拍完后直接走 OCR，体验更稳定
+        showSystemCamera = true
     }
 
     private func startOCR(image: UIImage) {
@@ -889,6 +875,37 @@ struct ShareSheet: UIViewControllerRepresentable {
         return vc
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - 系统相机封装（UIImagePickerController）
+// 用于拍图识字的拍照，比 DataScanner.capturePhoto() 更稳定可靠
+struct SystemCameraView: UIViewControllerRepresentable {
+    var onPhoto: (UIImage) -> Void
+    var onDismiss: () -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ vc: UIImagePickerController, context: Context) {}
+    func makeCoordinator() -> Coordinator { Coordinator(onPhoto: onPhoto, onDismiss: onDismiss) }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onPhoto: (UIImage) -> Void
+        let onDismiss: () -> Void
+        init(onPhoto: @escaping (UIImage) -> Void, onDismiss: @escaping () -> Void) {
+            self.onPhoto = onPhoto; self.onDismiss = onDismiss
+        }
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let img = info[.originalImage] as? UIImage { onPhoto(img) }
+            else { onDismiss() }
+        }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onDismiss() }
+    }
 }
 
 #Preview {

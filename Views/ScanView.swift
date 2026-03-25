@@ -168,18 +168,32 @@ struct ScanView: View {
             _ = url.startAccessingSecurityScopedResource()
             isConvertingPPT = true
             Task {
-                do {
-                    let docxUrl = try await ConvertService.pdfToWord(pdfUrl: url)
-                    url.stopAccessingSecurityScopedResource()
-                    await MainActor.run {
-                        isConvertingPPT = false
-                        let av = UIActivityViewController(activityItems: [docxUrl], applicationActivities: nil)
-                        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                           let root = scene.windows.first?.rootViewController { root.present(av, animated: true) }
+                // 本地方案：PDFKit 提取文字 → DocxExporter 生成 Word
+                // 不走后端，彻底解决中文方格问题（字体由 Word 客户端渲染）
+                await viewModel.processPDF(url: url)
+                url.stopAccessingSecurityScopedResource()
+                await MainActor.run {
+                    isConvertingPPT = false
+                    guard let result = viewModel.scanResult else {
+                        pptConvertError = "PDF 文字提取失败，请确认文件完整"
+                        return
                     }
-                } catch {
-                    url.stopAccessingSecurityScopedResource()
-                    await MainActor.run { isConvertingPPT = false; pptConvertError = error.localizedDescription }
+                    // 用 DocxExporter 本地生成 Word
+                    let isPremium = false  // TODO: 接入 SubscriptionManager
+                    Task {
+                        guard let filePath = await viewModel.exportWord(isPremium: isPremium) else {
+                            await MainActor.run { pptConvertError = "Word 文件生成失败" }
+                            return
+                        }
+                        await MainActor.run {
+                            let docxUrl = URL(fileURLWithPath: filePath)
+                            let av = UIActivityViewController(activityItems: [docxUrl], applicationActivities: nil)
+                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let root = scene.windows.first?.rootViewController {
+                                root.present(av, animated: true)
+                            }
+                        }
+                    }
                 }
             }
         case .failure(let error):

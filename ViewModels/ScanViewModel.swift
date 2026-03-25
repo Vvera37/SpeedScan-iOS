@@ -169,6 +169,13 @@ class ScanViewModel: ObservableObject {
     }
 
     // MARK: - PDF 处理（优先提取文字层，无文字层才走 OCR）
+    // async 版本，供 ScanView await 使用
+    func processPDF(url: URL) async {
+        await withCheckedContinuation { continuation in
+            processPDF(url: url, onComplete: { continuation.resume() })
+        }
+    }
+
     func processPDF(url: URL, onComplete: (() -> Void)? = nil) {
         guard let pdf = PDFDocument(url: url) else {
             showAlert(title: "打开失败", message: "无法读取该 PDF 文件，请确认文件完整")
