@@ -60,9 +60,8 @@ struct ScanResultView: View {
                             }
                         } else {
                             // ── 单图单块渲染 ───────────────────────────
-                            SinglePageTextCard(
-                                editedText: $editedText,
-                                charCount: editedText.count,
+                            EditableTextCard(
+                                text: $editedText,
                                 isTranslated: isTranslated
                             )
                             .padding(.horizontal, 20)
@@ -231,46 +230,7 @@ struct ScanResultView: View {
 }
 
 // MARK: - 单图文字卡片
-struct SinglePageTextCard: View {
-    @Binding var editedText: String
-    let charCount: Int
-    let isTranslated: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("识别内容").font(.system(size: 14, weight: .semibold)).foregroundColor(.secondary)
-                Spacer()
-                if isTranslated {
-                    Label("已翻译", systemImage: "checkmark.circle.fill").font(.system(size: 12)).foregroundColor(.green)
-                } else {
-                    HStack(spacing: 6) {
-                        Text("\(charCount) 字").font(.system(size: 13)).foregroundColor(.secondary)
-                        Label("可编辑", systemImage: "pencil")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
-                    }
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-
-            Divider().padding(.horizontal, 16)
-
-            TextEditor(text: $editedText)
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundColor(.primary)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .scrollDisabled(true)
-                .frame(minHeight: 200)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-        }
-        .background(Color(UIColor.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-    }
-}
+// SinglePageTextCard 已迁移至 Components/EditableTextCard.swift
 
 // MARK: - PDF 单页 Cell
 struct PageCell: View {

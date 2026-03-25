@@ -36,38 +36,9 @@ struct OCRResultView: View {
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
 
-                        // 文字内容（Text 展示 + TextEditor 叠加，外层滚动）
-                        VStack(alignment: .leading, spacing: 0) {
-                            // 只保留字数，去掉多余标题行
-                            HStack {
-                                Text("\(editedText.count) 字")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Label("可编辑", systemImage: "pencil")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-
-                            Divider().padding(.horizontal, 16)
-
-                            // TextEditor 高度跟随内容，配合外层 ScrollView 实现外滑动
-                            TextEditor(text: $editedText)
-                                .font(.system(size: 14, design: .monospaced))
-                                .foregroundColor(.primary)
-                                .scrollContentBackground(.hidden)
-                                .background(Color.clear)
-                                .scrollDisabled(true)        // 禁止内滚动，交给外层 ScrollView
-                                .frame(minHeight: 200)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                        }
-                        .background(Color(UIColor.systemBackground))
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                        .padding(.horizontal, 20)
+                        // 文字编辑卡片（复用 Components/EditableTextCard）
+                        EditableTextCard(text: $editedText)
+                            .padding(.horizontal, 20)
 
                         Spacer(minLength: 100)
                     }

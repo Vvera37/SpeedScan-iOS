@@ -22,6 +22,7 @@
 		A1000013 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000013 /* KeychainService.swift */; };
 		A1000014 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000014 /* SubscriptionManager.swift */; };
 		A1000015 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000015 /* ImagePicker.swift */; };
+		BFA6103A2F721D3E000C465E /* EditableTextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6103B2F721D3E000C465E /* EditableTextCard.swift */; };
 		A1000016 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016 /* CameraView.swift */; };
 		A1000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000017 /* Assets.xcassets */; };
 		A1000018 /* test-ocr-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000019 /* test-ocr-image.jpg */; };
@@ -50,6 +51,7 @@
 		B1000013 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		B1000014 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		B1000015 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		BFA6103B2F721D3E000C465E /* EditableTextCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableTextCard.swift; sourceTree = "<group>"; };
 		B1000016 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		B1000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000015 /* ImagePicker.swift */,
+				BFA6103B2F721D3E000C465E /* EditableTextCard.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -266,6 +269,7 @@
 				A1000013 /* KeychainService.swift in Sources */,
 				A1000014 /* SubscriptionManager.swift in Sources */,
 				A1000015 /* ImagePicker.swift in Sources */,
+				BFA6103A2F721D3E000C465E /* EditableTextCard.swift in Sources */,
 				A1000016 /* CameraView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
