@@ -85,7 +85,7 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
             recognizedDataTypes: [.text()],
             qualityLevel: .accurate,
             recognizesMultipleItems: true,
-            isHighlightingEnabled: true
+            isHighlightingEnabled: false  // 关闭高亮框，避免拍照时把 overlay 拍进图片
         )
         scanner.delegate = context.coordinator
         context.coordinator.onVCReady       = onVCReady
@@ -512,21 +512,30 @@ struct CameraView: View {
         guard !isCapturing, let vc = scannerVC else { return }
         isCapturing = true
 
-        // 先 stopScanning 释放 DataScanner 对 AVCaptureSession 的独占
-        // 延迟 200ms 让系统把 session 真正切换出去，再调 capturePhoto 就不会 -11800
-        vc.stopScanning()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            Task {
-                do {
-                    let image = try await vc.capturePhoto()
-                    print("✅ capturePhoto 成功，size=\(image.size)")
-                    await MainActor.run {
-                        self.isCapturing = false
-                        self.startOCR(image: image)  // 拍完直接走 Claude OCR
+        // capturePhoto() 设计为在 scanning 状态下直接调用，不需要 stopScanning
+        // 之前 stopScanning 反而导致相机帧停了，拍到空图
+        Task {
+            do {
+                let image = try await vc.capturePhoto()
+                print("✅ capturePhoto 成功，size=\(image.size)")
+                await MainActor.run {
+                    self.isCapturing = false
+                    self.startOCR(image: image)
+                }
+            } catch {
+                print("❌ capturePhoto 失败：\(error)，尝试截图兜底")
+                // 兜底：capturePhoto 失败时截当前视图（此时扫描还在跑，画面有内容）
+                await MainActor.run {
+                    let renderer = UIGraphicsImageRenderer(bounds: vc.view.bounds)
+                    let fallback = renderer.image { _ in
+                        vc.view.drawHierarchy(in: vc.view.bounds, afterScreenUpdates: false)
                     }
-                } catch {
-                    print("❌ capturePhoto 失败：\(error)")
-                    await MainActor.run { self.isCapturing = false }
+                    self.isCapturing = false
+                    if fallback.size.width > 0 {
+                        self.startOCR(image: fallback)
+                    } else {
+                        self.ocrError = "拍照失败，请重试"
+                    }
                 }
             }
         }
