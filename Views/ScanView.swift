@@ -56,7 +56,14 @@ struct ScanView: View {
             Button("好") { pptConvertError = nil }
         } message: { Text(pptConvertError ?? "") }
         .sheet(isPresented: $showPHPicker) {
-            ScanPHPickerView(selectedImage: $viewModel.selectedImage, isPresented: $showPHPicker)
+            ScanPHPickerView(
+                onSelected: { image in
+                    showPHPicker = false
+                    guard appState.recordGuestScan() else { showLoginSheet = true; return }
+                    startOCR(image: image)
+                },
+                isPresented: $showPHPicker
+            )
         }
         // 拍照识字：系统相机
         .fullScreenCover(isPresented: $showSystemCamera) {
@@ -99,14 +106,6 @@ struct ScanView: View {
                     }
                     .padding(32).background(Color(white: 0.15)).cornerRadius(16)
                 }
-            }
-        }
-        .onChange(of: viewModel.selectedImage) { _, newImage in
-            guard newImage != nil else { return }
-            if appState.recordGuestScan() {
-                viewModel.performOCR()
-            } else {
-                Task { @MainActor in viewModel.selectedImage = nil; showLoginSheet = true }
             }
         }
         .onChange(of: viewModel.scanResult) { _, result in if result != nil { showResult = true } }
@@ -455,7 +454,7 @@ extension Color {
 
 // MARK: - 首页相册单选 PHPicker（单张，替代 UIImagePickerController 避免白页）
 struct ScanPHPickerView: UIViewControllerRepresentable {
-    @Binding var selectedImage: UIImage?
+    var onSelected: (UIImage) -> Void
     @Binding var isPresented: Bool
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
@@ -477,7 +476,7 @@ struct ScanPHPickerView: UIViewControllerRepresentable {
             guard let result = results.first else { return }
             result.itemProvider.loadObject(ofClass: UIImage.self) { obj, _ in
                 DispatchQueue.main.async {
-                    self.parent.selectedImage = obj as? UIImage
+                    if let img = obj as? UIImage { self.parent.onSelected(img) }
                 }
             }
         }
