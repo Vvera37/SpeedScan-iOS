@@ -311,7 +311,11 @@ struct CameraView: View {
                 // ── 分享 ──────────────────────────────────────────
                 if let url = convertResultURL {
                     Color.clear.sheet(isPresented: $showShareSheet) {
-                        ShareSheet(url: url)
+                        ShareSheet(url: url) {
+                            // 用户分享或取消后回到管理页面，这时弹确认弹窗
+                            showShareSheet = false
+                            showPDFDoneAlert = true
+                        }
                     }
                 }
 
@@ -347,19 +351,23 @@ struct CameraView: View {
             Button("好", role: .cancel) { convertError = nil }
         } message: { Text(convertError ?? "") }
         // PDF 生成成功确认弹窗
-        .alert("PDF 已生成", isPresented: $showPDFDoneAlert) {
+        // 触发时机：用户从分享sheet返回管理页面后
+        // 「重新生成」→ 重新拉起分享sheet（同一份 PDF），方便再次保存/分享到其他 app
+        // 「完成，关闭此页」→ 清空数据，dismiss CameraView 回首页
+        .alert("PDF 已生成 ✓", isPresented: $showPDFDoneAlert) {
             Button("重新生成") {
-                // 保留页面，让用户可以继续修改后再生成
-                showPDFDoneAlert = false
-            }
-            Button("好的，分享文件") {
-                showPDFDoneAlert = false
+                // 再次拉起同一份 PDF 的分享 sheet
                 showShareSheet = true
-                // 分享完后回到预览页（或关闭）
-                pptFlow = .preview
+            }
+            Button("完成，关闭此页") {
+                // 清空页面数据，回到首页
+                pptPages = []
+                convertResultURL = nil
+                pptFlow = .guide
+                dismissSafely()
             }
         } message: {
-            Text("PDF 文件已成功生成，可直接分享或存储到文件。\n如需调整页面，可重新生成。")
+            Text("PDF 文件已成功生成。\n可重新拉起分享，或完成并返回首页。")
         }
         .onAppear { checkCameraPermission() }
     }
@@ -522,10 +530,11 @@ struct CameraView: View {
                     self.stopTimer()
                     self.convertProgress = 1.0
                     self.convertResultURL = url
-                    // 进度跑完后 0.5s 再弹确认弹窗，视觉上有个完成感
+                    // 进度跑完后 0.5s 先回到预览页，再弹分享sheet
+                    // 分享完成后（ShareSheet.onDismiss）再弹确认弹窗
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.pptFlow = .preview
-                        self.showPDFDoneAlert = true
+                        self.showShareSheet = true
                     }
                 }
             } catch is CancellationError {
@@ -793,11 +802,17 @@ struct PPTConvertingView: View {
     }
 }
 
-// MARK: - 分享
+// MARK: - 分享（分享完成后回调 onDismiss，让调用方关闭页面）
 struct ShareSheet: UIViewControllerRepresentable {
     let url: URL
+    var onDismiss: (() -> Void)? = nil
+
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        vc.completionWithItemsHandler = { _, _, _, _ in
+            onDismiss?()
+        }
+        return vc
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
