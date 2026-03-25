@@ -233,7 +233,12 @@ struct CameraView: View {
     @State private var selectedMode: CaptureMode = .scan
     @State private var cameraPermissionDenied = false
     @State private var isCapturing = false
-    @State private var liveText = ""
+
+    // 手写/图片识别（Claude Vision）
+    @State private var isRecognizing = false
+    @State private var ocrResult: String? = nil
+    @State private var ocrError: String? = nil
+    @State private var showOCRResult = false
 
     @State private var pptFlow: PPTFlowState = .guide
     @State private var pptPages: [UIImage] = []
@@ -319,6 +324,40 @@ struct CameraView: View {
                     }
                 }
 
+                // ── OCR 识别中 loading ────────────────────────────
+                if isRecognizing {
+                    ZStack {
+                        Color.black.opacity(0.65).ignoresSafeArea()
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.5)
+                            Text("正在识别文字…")
+                                .foregroundColor(.white)
+                                .font(.system(size: 15))
+                        }
+                    }
+                    .allowsHitTesting(true)
+                    .zIndex(8)
+                }
+
+                // ── OCR 识别结果页 ─────────────────────────────────
+                if showOCRResult, let text = ocrResult {
+                    OCRResultView(
+                        initialText: text,
+                        onDismiss: {
+                            showOCRResult = false
+                            ocrResult = nil
+                            // 关闭结果页后重启扫描，让用户可以继续拍
+                            if let vc = scannerVC {
+                                try? vc.startScanning()
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .bottom))
+                    .zIndex(10)
+                }
+
                 // ── Toast ─────────────────────────────────────────
                 if let msg = toastMessage {
                     VStack {
@@ -350,6 +389,12 @@ struct CameraView: View {
         )) {
             Button("好", role: .cancel) { convertError = nil }
         } message: { Text(convertError ?? "") }
+        .alert("识别失败", isPresented: .init(
+            get: { ocrError != nil },
+            set: { if !$0 { ocrError = nil } }
+        )) {
+            Button("好", role: .cancel) { ocrError = nil }
+        } message: { Text(ocrError ?? "") }
         // PDF 生成成功确认弹窗
         // 触发时机：用户从分享sheet返回管理页面后
         // 「重新生成」→ 重新拉起分享sheet（同一份 PDF），方便再次保存/分享到其他 app
@@ -433,7 +478,7 @@ struct CameraView: View {
             } else if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
                 DataScannerRepresentable(
                     onVCReady: { vc in scannerVC = vc },
-                    onTextRecognized: { text in liveText = text }
+                    onTextRecognized: { _ in }  // DataScanner 实时识别仅用于取景框高亮，不保存文字
                 )
             } else {
                 ZStack { Color.black; Text("需要 iOS 16 或以上版本").foregroundColor(.white) }
@@ -467,22 +512,42 @@ struct CameraView: View {
         guard !isCapturing, let vc = scannerVC else { return }
         isCapturing = true
 
-        // 方案：先 stopScanning 释放 AVSession，截取当前 DataScanner view 画面作为拍摄结果。
-        // 背景：capturePhoto() 在 DataScanner 扫描中调用会触发 AVFoundationErrorDomain -11800，
-        // 原因是底层 AVCaptureSession 被 DataScanner 独占，capturePhoto 内部再去开 session 会冲突。
-        // 截图方案与 capturePhoto 结果等价（DataScanner 预览就是实时相机画面）。
+        // 先 stopScanning 释放 DataScanner 对 AVCaptureSession 的独占
+        // 延迟 200ms 让系统把 session 真正切换出去，再调 capturePhoto 就不会 -11800
         vc.stopScanning()
-
-        // 等 100ms：让 DataScanner overlay（蓝色识别框）消失后再截图，避免 OCR 识别到框线
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            let renderer = UIGraphicsImageRenderer(bounds: vc.view.bounds)
-            let image = renderer.image { _ in
-                vc.view.drawHierarchy(in: vc.view.bounds, afterScreenUpdates: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            Task {
+                do {
+                    let image = try await vc.capturePhoto()
+                    print("✅ capturePhoto 成功，size=\(image.size)")
+                    await MainActor.run {
+                        self.isCapturing = false
+                        self.startOCR(image: image)  // 拍完直接走 Claude OCR
+                    }
+                } catch {
+                    print("❌ capturePhoto 失败：\(error)")
+                    await MainActor.run { self.isCapturing = false }
+                }
             }
-            print("✅ 截图成功，size=\(image.size)")
-            self.isCapturing = false
-            self.capturedImage = image
-            self.dismissSafely()
+        }
+    }
+
+    private func startOCR(image: UIImage) {
+        isRecognizing = true
+        Task {
+            do {
+                let text = try await OCRService.recognizeHandwriting(image: image)
+                await MainActor.run {
+                    isRecognizing = false
+                    ocrResult = text
+                    showOCRResult = true
+                }
+            } catch {
+                await MainActor.run {
+                    isRecognizing = false
+                    ocrError = error.localizedDescription
+                }
+            }
         }
     }
 
