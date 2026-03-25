@@ -229,10 +229,9 @@ struct ScanView: View {
                 return
             }
 
-            // 手写/低置信度：走 Claude Vision
-            let compressed = resizeImage(image, maxDimension: 1500)
+            // 手写/低置信度：走 Claude Vision（压缩在 OCRService 内部处理）
             do {
-                let text = try await OCRService.recognizeHandwriting(image: compressed)
+                let text = try await OCRService.recognizeHandwriting(image: image)
                 await MainActor.run {
                     isRecognizing = false
                     ocrResult = text
