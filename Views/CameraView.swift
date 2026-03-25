@@ -359,13 +359,11 @@ struct CameraView: View {
                 if showOCRResult, let text = ocrResult {
                     OCRResultView(
                         initialText: text,
+                        originalImage: UIImage(),
                         onDismiss: {
                             showOCRResult = false
                             ocrResult = nil
-                            // 关闭结果页后重启扫描，让用户可以继续拍
-                            if let vc = scannerVC {
-                                try? vc.startScanning()
-                            }
+                            if let vc = scannerVC { try? vc.startScanning() }
                         }
                     )
                     .transition(.move(edge: .bottom))

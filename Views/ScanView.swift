@@ -302,12 +302,12 @@ struct ScanView: View {
                 url.stopAccessingSecurityScopedResource()
                 await MainActor.run {
                     isConvertingPPT = false
-                    guard let result = viewModel.scanResult else {
+                    guard viewModel.scanResult != nil else {
                         pptConvertError = "PDF 文字提取失败，请确认文件完整"
                         return
                     }
                     // 用 DocxExporter 本地生成 Word
-                    let isPremium = false  // TODO: 接入 SubscriptionManager
+                    let isPremium = subscriptionManager.isPremium
                     Task {
                         guard let filePath = await viewModel.exportWord(isPremium: isPremium) else {
                             await MainActor.run { pptConvertError = "Word 文件生成失败" }
