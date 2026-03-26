@@ -100,16 +100,30 @@ class SubscriptionManager: ObservableObject {
                     purchaseError = "购买验证失败，请联系客服"
                     return
                 }
+                // 直接从本次 transaction 取有效期，不依赖 entitlements 延迟写入
+                let planName = transaction.productID == Self.yearlyProductID ? "年度会员" : "月度会员"
+                let expiry = transaction.expirationDate
+
                 await transaction.finish()
-                // 购买成功后重新检查所有 entitlements，确保有效期取最新值
-                await checkSubscriptionStatus()
+
+                // 更新状态（用本次 transaction 数据，立即生效）
+                isPremium = true
+                currentPlanName = planName
+                if let expiry = expiry {
+                    // 取已有有效期和本次有效期中更晚的那个（年度叠月度场景）
+                    if expiryDate == nil || expiry > expiryDate! {
+                        expiryDate = expiry
+                    }
+                }
                 showPurchaseSuccess = true
 
+                // 后台再跑一次完整 check（保证数据最终一致）
+                Task { await checkSubscriptionStatus() }
+
             case .userCancelled:
-                break // 用户取消，静默处理
+                break
 
             case .pending:
-                // 等待家长审批等异步状态
                 purchaseError = "购买处于等待状态，请稍后检查"
 
             @unknown default:

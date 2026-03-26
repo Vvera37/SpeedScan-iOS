@@ -11,6 +11,7 @@ struct ProfileView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var showLogoutConfirm = false
     @State private var showLoginSheet = false
+    @State private var showSuccessToast = false
     @Environment(\.requestReview) private var requestReview
 
     var body: some View {
@@ -93,6 +94,38 @@ struct ProfileView: View {
                         Spacer(minLength: 40)
                     }
                 }
+
+                // ── 购买成功 Toast ────────────────────────────────
+                if showSuccessToast {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                let plan = subscriptionManager.currentPlanName.isEmpty ? "会员" : subscriptionManager.currentPlanName
+                                Text("🎉 \(plan)开通成功！")
+                                    .font(.system(size: 15, weight: .semibold))
+                                if let expiry = subscriptionManager.expiryDate {
+                                    Text("有效期至 \(expiry.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits)))")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(Color(UIColor.systemBackground))
+                        .cornerRadius(16)
+                        .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 4)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(10)
+                }
             }
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.inline)
@@ -113,14 +146,19 @@ struct ProfileView: View {
             } message: {
                 Text(subscriptionManager.purchaseError ?? "")
             }
-            .alert("🎉 开通成功！", isPresented: $subscriptionManager.showPurchaseSuccess) {
-                Button("太好了", role: .cancel) { subscriptionManager.showPurchaseSuccess = false }
-            } message: {
-                let plan = subscriptionManager.currentPlanName.isEmpty ? "会员" : subscriptionManager.currentPlanName
-                let expiry = subscriptionManager.expiryDate.map {
-                    $0.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits))
-                } ?? "未知"
-                Text("已成功开通\(plan)，有效期至 \(expiry)，所有功能无限畅用 🚀")
+            .onChange(of: subscriptionManager.showPurchaseSuccess) { _, newValue in
+                if newValue {
+                    subscriptionManager.showPurchaseSuccess = false
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showSuccessToast = true
+                    }
+                    // 3 秒后自动消失
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showSuccessToast = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -314,9 +352,9 @@ struct PremiumStatusCard: View {
             .disabled(subscriptionManager.isLoading)
         }
         .padding(20)
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 
