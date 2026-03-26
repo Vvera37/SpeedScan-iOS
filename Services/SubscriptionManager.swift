@@ -106,19 +106,22 @@ class SubscriptionManager: ObservableObject {
 
                 await transaction.finish()
 
-                // 更新状态（用本次 transaction 数据，立即生效）
+                // 立即用本次 transaction 数据更新 UI，不等 entitlements
                 isPremium = true
                 currentPlanName = planName
                 if let expiry = expiry {
-                    // 取已有有效期和本次有效期中更晚的那个（年度叠月度场景）
                     if expiryDate == nil || expiry > expiryDate! {
                         expiryDate = expiry
                     }
                 }
-                showPurchaseSuccess = true
 
-                // 后台再跑一次完整 check（保证数据最终一致）
-                Task { await checkSubscriptionStatus() }
+                // 延迟触发成功提示，错开苹果系统弹窗（系统弹窗约需 0.5s 消失）
+                // 延迟后台 check，避免 entitlements 未写入就覆盖掉正确的 expiryDate
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.showPurchaseSuccess = true
+                    // entitlements 此时已写入，check 结果会和本次一致
+                    Task { await self.checkSubscriptionStatus() }
+                }
 
             case .userCancelled:
                 break
