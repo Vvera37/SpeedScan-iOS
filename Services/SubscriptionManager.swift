@@ -100,28 +100,19 @@ class SubscriptionManager: ObservableObject {
                     purchaseError = "购买验证失败，请联系客服"
                     return
                 }
-                // 直接从本次 transaction 取有效期，不依赖 entitlements 延迟写入
-                let planName = transaction.productID == Self.yearlyProductID ? "年度会员" : "月度会员"
-                let expiry = transaction.expirationDate
 
                 await transaction.finish()
 
-                // 立即用本次 transaction 数据更新 UI，不等 entitlements
+                // 直接用本次 transaction 的权威数据更新 UI
                 isPremium = true
-                currentPlanName = planName
-                if let expiry = expiry {
-                    if expiryDate == nil || expiry > expiryDate! {
-                        expiryDate = expiry
-                    }
+                currentPlanName = transaction.productID == Self.yearlyProductID ? "年度会员" : "月度会员"
+                if let expiry = transaction.expirationDate {
+                    expiryDate = expiry  // 苹果返回的最新有效期，直接信任
                 }
+                showPurchaseSuccess = true
 
-                // 延迟触发成功提示，错开苹果系统弹窗（系统弹窗约需 0.5s 消失）
-                // 延迟后台 check，避免 entitlements 未写入就覆盖掉正确的 expiryDate
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.showPurchaseSuccess = true
-                    // entitlements 此时已写入，check 结果会和本次一致
-                    Task { await self.checkSubscriptionStatus() }
-                }
+                // ⚠️ 不在这里调 checkSubscriptionStatus()
+                // entitlements 有延迟，调了反而会覆盖掉正确的日期
 
             case .userCancelled:
                 break
