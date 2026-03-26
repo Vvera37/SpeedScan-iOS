@@ -47,6 +47,8 @@ struct AuthService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // 登录时带上设备 UUID，后端自动合并访客使用次数
+        request.setValue(UsageService.deviceUUID, forHTTPHeaderField: "X-Device-UUID")
         request.timeoutInterval = 15
 
         let body = ["phone": phone, "code": code]

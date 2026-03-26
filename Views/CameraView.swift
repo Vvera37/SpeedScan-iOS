@@ -529,12 +529,18 @@ struct CameraView: View {
     private func startOCR(image: UIImage) {
         isRecognizing = true
         Task {
+            let token = KeychainService.load(key: "auth_token")
             do {
-                let text = try await OCRService.recognizeHandwriting(image: image)
+                let text = try await OCRService.recognizeHandwriting(image: image, token: token)
                 await MainActor.run {
                     isRecognizing = false
                     ocrResult = text
                     showOCRResult = true
+                }
+            } catch let quotaErr as QuotaExceededError {
+                await MainActor.run {
+                    isRecognizing = false
+                    ocrError = quotaErr.errorDescription
                 }
             } catch {
                 await MainActor.run {
@@ -581,9 +587,10 @@ struct CameraView: View {
             if self.convertProgress < 0.95 { self.convertProgress = min(self.convertProgress + 0.02, 0.95) }
         }
         convertTask = Task {
+            let token = KeychainService.load(key: "auth_token")
             do {
                 let url = try await withTimeout(seconds: 120) {
-                    try await ConvertService.imagesToPdf(images: self.pptPages)
+                    try await ConvertService.imagesToPdf(images: self.pptPages, token: token)
                 }
                 await MainActor.run {
                     self.stopTimer()
@@ -597,6 +604,8 @@ struct CameraView: View {
                     }
                 }
             } catch is CancellationError {
+            } catch let quotaErr as QuotaExceededError {
+                await MainActor.run { self.stopTimer(); self.convertError = quotaErr.errorDescription; self.pptFlow = .preview }
             } catch {
                 await MainActor.run { self.stopTimer(); self.convertError = error.localizedDescription; self.pptFlow = .preview }
             }

@@ -9,6 +9,7 @@ import QuickLook
 
 struct HistoryView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
 
     @Query(sort: \ScanRecord.createdAt, order: .reverse)
     private var records: [ScanRecord]
@@ -17,6 +18,19 @@ struct HistoryView: View {
 
     @State private var quickLookURL: URL?
     @State private var showQuickLook = false
+    @State private var showUsageLimit = false
+
+    // 免费用户只展示最近 3 条，会员展示最近 20 条
+    private static let freeLimit = 3
+    private static let vipLimit  = 20
+
+    private var displayedRecords: [ScanRecord] {
+        let isVip = subscriptionManager.isPremium
+        let limit = isVip ? Self.vipLimit : Self.freeLimit
+        return Array(records.prefix(limit))
+    }
+
+    private var isVip: Bool { subscriptionManager.isPremium }
 
     var body: some View {
         NavigationStack {
@@ -32,7 +46,7 @@ struct HistoryView: View {
                 } else {
                     // 记录列表
                     List {
-                        ForEach(records) { record in
+                        ForEach(displayedRecords) { record in
                             HistoryCardRow(record: record)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                 .listRowBackground(Color.clear)
@@ -42,6 +56,31 @@ struct HistoryView: View {
                                 }
                         }
                         .onDelete(perform: deleteRecords)
+
+                        // 非会员且有更多记录时展示解锁提示
+                        if !isVip && records.count > Self.freeLimit {
+                            VStack(spacing: 12) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.orange)
+                                Text("还有 \(records.count - Self.freeLimit) 条记录")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text("开通 VIP 查看最近 20 条历史记录")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                Button("解锁 VIP") { showUsageLimit = true }
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 32)
+                                    .padding(.vertical, 10)
+                                    .background(Color.orange)
+                                    .cornerRadius(20)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
                     }
                     .listStyle(.plain)
                     .background(Color.clear)
@@ -69,6 +108,10 @@ struct HistoryView: View {
                 .background(Color(UIColor.systemBackground))
             }
             .quickLookPreview($quickLookURL)
+            .fullScreenCover(isPresented: $showUsageLimit) {
+                UsageLimitView(feature: .ocr) { showUsageLimit = false }
+                    .environmentObject(subscriptionManager)
+            }
         }
     }
 

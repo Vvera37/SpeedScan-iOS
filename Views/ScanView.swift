@@ -27,6 +27,10 @@ struct ScanView: View {
     @State private var ocrError: String? = nil
     @State private var showOCRResult = false
 
+    // 使用量超限
+    @State private var showUsageLimit = false
+    @State private var usageLimitFeature: UsageFeature = .ocr
+
     // 最近记录（SwiftData）
     @Query(sort: \ScanRecord.createdAt, order: .reverse) private var recentRecords: [ScanRecord]
 
@@ -103,6 +107,10 @@ struct ScanView: View {
         }
         .sheet(isPresented: $showLoginSheet) {
             LoginView(isModal: true).environmentObject(appState)
+        }
+        .fullScreenCover(isPresented: $showUsageLimit) {
+            UsageLimitView(feature: usageLimitFeature) { showUsageLimit = false }
+                .environmentObject(subscriptionManager)
         }
         // loading 用 overlay 不用 fullScreenCover，避免多个 cover 同时触发冲突
         // colorScheme(.dark) 隔离深色环境，防止影响外层 Color.primary 解析
@@ -192,12 +200,18 @@ struct ScanView: View {
                 isConvertingPPT = true
                 Task {
                     do {
-                        let url = try await ConvertService.imagesToPdf(images: pages)
+                        let url = try await ConvertService.imagesToPdf(images: pages, token: appState.currentToken)
                         await MainActor.run {
                             isConvertingPPT = false
                             let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
                             if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                                let root = scene.windows.first?.rootViewController { root.present(av, animated: true) }
+                        }
+                    } catch let quotaErr as QuotaExceededError {
+                        await MainActor.run {
+                            isConvertingPPT = false
+                            usageLimitFeature = quotaErr.feature
+                            showUsageLimit = true
                         }
                     } catch {
                         await MainActor.run { isConvertingPPT = false; pptConvertError = error.localizedDescription }
@@ -231,11 +245,17 @@ struct ScanView: View {
 
             // 手写/低置信度：走 Claude Vision（压缩在 OCRService 内部处理）
             do {
-                let text = try await OCRService.recognizeHandwriting(image: image)
+                let text = try await OCRService.recognizeHandwriting(image: image, token: appState.currentToken)
                 await MainActor.run {
                     isRecognizing = false
                     ocrResult = text
                     showOCRResult = true
+                }
+            } catch let quotaErr as QuotaExceededError {
+                await MainActor.run {
+                    isRecognizing = false
+                    usageLimitFeature = quotaErr.feature
+                    showUsageLimit = true
                 }
             } catch {
                 await MainActor.run {

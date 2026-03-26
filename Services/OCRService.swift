@@ -13,7 +13,11 @@ enum OCRService {
     private static let baseURL = AuthService.baseURL
 
     /// 识别图片中的文字（印刷体 + 手写体）
-    static func recognizeHandwriting(image: UIImage) async throws -> String {
+    /// token: 已登录时传入，未登录传 nil（使用 UUID 计数）
+    static func recognizeHandwriting(image: UIImage, token: String?) async throws -> String {
+        // ── 使用量前置检查 ──
+        try await UsageService.checkQuota(feature: .ocr, token: token)
+
         // 压缩：长边限制 1500px，Anthropic 单图限制 5MB，压缩后约 200-400KB
         let resized = resizeIfNeeded(image, maxDimension: 1500)
         guard let data = resized.jpegData(compressionQuality: 0.82) else {
@@ -24,15 +28,29 @@ enum OCRService {
         let url = URL(string: "\(baseURL)/api/ocr/handwriting")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
+        // 带上 UUID 和 Token，后端二次验证并记录
+        for (k, v) in UsageService.buildHeaders(token: token) {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: ["image": base64])
 
         let (responseData, response) = try await URLSession.shared.data(for: request)
 
-        guard let http = response as? HTTPURLResponse,
-              (200...299).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else {
+            throw OCRServiceError.serverError("网络响应异常")
+        }
+
+        if http.statusCode == 402 {
+            // 后端超限（双重保险）
+            let json = (try? JSONSerialization.jsonObject(with: responseData) as? [String: Any]) ?? [:]
+            let used  = json["used"]  as? Int ?? UsageFeature.ocr.freeLimit
+            let limit = json["limit"] as? Int ?? UsageFeature.ocr.freeLimit
+            throw QuotaExceededError(feature: .ocr, used: used, limit: limit)
+        }
+
+        guard (200...299).contains(http.statusCode) else {
             let msg = (try? JSONDecoder().decode([String: String].self, from: responseData))?["error"] ?? "识别失败"
             throw OCRServiceError.serverError(msg)
         }
