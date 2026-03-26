@@ -21,10 +21,12 @@ class SubscriptionManager: ObservableObject {
 
     // MARK: - Published 状态
     @Published var isPremium: Bool = false
-    @Published var expiryDate: Date? = nil   // 当前会员有效期
+    @Published var expiryDate: Date? = nil       // 当前会员最新有效期
+    @Published var currentPlanName: String = ""  // "月度会员" / "年度会员"
     @Published var products: [Product] = []
     @Published var isLoading: Bool = false
     @Published var purchaseError: String?
+    @Published var showPurchaseSuccess: Bool = false  // 购买成功弹窗触发
 
     private var updatesTask: Task<Void, Never>?
 
@@ -62,9 +64,10 @@ class SubscriptionManager: ObservableObject {
         }
     }
 
-    // MARK: - 检查当前订阅状态
+    // MARK: - 检查当前订阅状态（取所有 entitlements 里最新有效期）
     func checkSubscriptionStatus() async {
         var latestExpiry: Date? = nil
+        var latestPlanName: String = ""
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if transaction.productID == Self.monthlyProductID ||
@@ -73,11 +76,13 @@ class SubscriptionManager: ObservableObject {
                 if let expiry = transaction.expirationDate {
                     if latestExpiry == nil || expiry > latestExpiry! {
                         latestExpiry = expiry
+                        latestPlanName = transaction.productID == Self.yearlyProductID ? "年度会员" : "月度会员"
                     }
                 }
             }
         }
         expiryDate = latestExpiry
+        currentPlanName = latestPlanName
         if latestExpiry == nil { isPremium = false }
     }
 
@@ -95,9 +100,10 @@ class SubscriptionManager: ObservableObject {
                     purchaseError = "购买验证失败，请联系客服"
                     return
                 }
-                isPremium = true
-                expiryDate = transaction.expirationDate
                 await transaction.finish()
+                // 购买成功后重新检查所有 entitlements，确保有效期取最新值
+                await checkSubscriptionStatus()
+                showPurchaseSuccess = true
 
             case .userCancelled:
                 break // 用户取消，静默处理
@@ -135,13 +141,11 @@ class SubscriptionManager: ObservableObject {
         Task(priority: .background) {
             for await result in Transaction.updates {
                 guard case .verified(let transaction) = result else { continue }
-                await MainActor.run {
-                    if transaction.productID == Self.monthlyProductID ||
-                       transaction.productID == Self.yearlyProductID {
-                        self.isPremium = true
-                    }
-                }
                 await transaction.finish()
+                if transaction.productID == Self.monthlyProductID ||
+                   transaction.productID == Self.yearlyProductID {
+                    await checkSubscriptionStatus()
+                }
             }
         }
     }

@@ -21,11 +21,13 @@ struct ProfileView: View {
                 ScrollView {
                     VStack(spacing: 20) {
 
-                        // MARK: 用户信息卡
+                        // MARK: 用户信息卡（合并：账号 + 会员状态 + 权益）
                         UserInfoCard(
                             phone: appState.userPhone,
                             isLoggedIn: appState.isLoggedIn,
-                            isPremium: subscriptionManager.isPremium
+                            isPremium: subscriptionManager.isPremium,
+                            expiryDate: subscriptionManager.expiryDate,
+                            planName: subscriptionManager.currentPlanName
                         ) {
                             showLoginSheet = true
                         }
@@ -111,6 +113,15 @@ struct ProfileView: View {
             } message: {
                 Text(subscriptionManager.purchaseError ?? "")
             }
+            .alert("🎉 开通成功！", isPresented: $subscriptionManager.showPurchaseSuccess) {
+                Button("太好了", role: .cancel) { subscriptionManager.showPurchaseSuccess = false }
+            } message: {
+                let plan = subscriptionManager.currentPlanName.isEmpty ? "会员" : subscriptionManager.currentPlanName
+                let expiry = subscriptionManager.expiryDate.map {
+                    $0.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits))
+                } ?? "未知"
+                Text("已成功开通\(plan)，有效期至 \(expiry)，所有功能无限畅用 🚀")
+            }
         }
     }
 
@@ -120,73 +131,130 @@ struct ProfileView: View {
 }
 
 // MARK: - 用户信息卡
+// MARK: - 用户信息卡（合并版：账号 + 会员状态 + 权益）
 struct UserInfoCard: View {
     let phone: String
     let isLoggedIn: Bool
     let isPremium: Bool
+    let expiryDate: Date?
+    let planName: String
     let onLoginTap: () -> Void
 
     var body: some View {
         Button(action: { if !isLoggedIn { onLoginTap() } }) {
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(isPremium
-                              ? Color.yellow.opacity(0.2)
-                              : Color(hex: "#007AFF").opacity(0.15))
-                        .frame(width: 60, height: 60)
-                    Image(systemName: isPremium ? "crown.fill" : "person.fill")
-                        .font(.system(size: 26))
-                        .foregroundColor(isPremium ? .yellow : Color(hex: "#007AFF"))
-                }
+            VStack(spacing: 0) {
+                // ── 顶部：头像 + 账号信息 ──────────────────────────
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(isPremium
+                                  ? LinearGradient(colors: [Color.yellow.opacity(0.3), Color.orange.opacity(0.2)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                                  : LinearGradient(colors: [Color(hex: "#007AFF").opacity(0.15), Color(hex: "#007AFF").opacity(0.08)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 60, height: 60)
+                        Image(systemName: isPremium ? "crown.fill" : "person.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(isPremium ? .yellow : Color(hex: "#007AFF"))
+                    }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    if !isLoggedIn {
-                        Text("未登录")
-                            .font(.system(size: 18, weight: .semibold))
-                        Text("点击登录，保障数据安全")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(phone.maskedPhone)
-                            .font(.system(size: 18, weight: .semibold))
-                        if isPremium {
-                            HStack(spacing: 4) {
-                                Image(systemName: "crown.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.yellow)
-                                Text("尊贵会员")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.orange)
-                            }
-                        } else {
-                            Text("免费用户")
+                    VStack(alignment: .leading, spacing: 5) {
+                        if !isLoggedIn {
+                            Text("未登录")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text("点击登录，保障数据安全")
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
+                        } else {
+                            Text(phone.maskedPhone)
+                                .font(.system(size: 18, weight: .semibold))
+                            if isPremium {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                    let label = planName.isEmpty ? "尊贵会员" : planName
+                                    Text(label)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.orange)
+                                    if let expiry = expiryDate {
+                                        Text("· 有效期至 \(expiry.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits)))")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            } else {
+                                Text("免费用户 · 功能受限")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
+                    Spacer()
+                    if !isLoggedIn {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
                 }
-                Spacer()
-                if !isLoggedIn {
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary.opacity(0.5))
+                .padding(20)
+
+                // ── 会员权益列表（仅会员展示）────────────────────────
+                if isPremium {
+                    Divider().padding(.horizontal, 20)
+
+                    VStack(spacing: 10) {
+                        HStack(spacing: 0) {
+                            VIPBadgeItem(icon: "doc.viewfinder.fill", text: "AI 识别无限次")
+                            VIPBadgeItem(icon: "doc.fill",            text: "图片转 PDF")
+                            VIPBadgeItem(icon: "doc.text.fill",       text: "PDF 转 Word")
+                            VIPBadgeItem(icon: "square.and.arrow.up.fill", text: "无水印导出")
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 14)
                 }
             }
-            .padding(20)
-            .background(Color(UIColor.systemBackground))
+            .background(
+                isPremium
+                    ? AnyView(LinearGradient(
+                        colors: [Color.yellow.opacity(0.07), Color.orange.opacity(0.04)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                    : AnyView(Color(UIColor.systemBackground))
+            )
             .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isPremium ? Color.yellow.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
             .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(.plain)
     }
 }
 
-// MARK: - 已开通会员卡（可续费）
+// MARK: - 会员权益 Badge 小项
+private struct VIPBadgeItem: View {
+    let icon: String
+    let text: String
+    var body: some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(.orange)
+            Text(text)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - 已开通会员卡（续费选项）
 struct PremiumStatusCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
-    @State private var selectedPlan: Plan = .monthly
+    @State private var selectedPlan: Plan = .yearly  // 默认选年度（更划算）
 
-    // 根据枚举取对应 Product
     private var selectedProduct: Product? {
         selectedPlan == .monthly
             ? subscriptionManager.monthlyProduct
@@ -194,41 +262,11 @@ struct PremiumStatusCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            // 顶部状态
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.yellow.opacity(0.2))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(.yellow)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("尊贵会员")
-                            .font(.system(size: 17, weight: .bold))
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 15))
-                    }
-                    if let expiry = subscriptionManager.expiryDate {
-                        Text("有效期至 \(expiry.formatted(.dateTime.year().month().day()))")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                Spacer()
-            }
-
-            Divider()
-
-            // 续费选项
+        VStack(spacing: 14) {
             Text("续费会员")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondary)
+                .font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundColor(.primary)
 
             HStack(spacing: 12) {
                 PriceCard(
@@ -237,21 +275,16 @@ struct PremiumStatusCard: View {
                     period: "/月",
                     tag: nil,
                     isSelected: selectedPlan == .monthly
-                ) {
-                    selectedPlan = .monthly
-                }
+                ) { selectedPlan = .monthly }
                 PriceCard(
                     title: "年度会员",
                     price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
                     period: "/年",
                     tag: "省66%",
                     isSelected: selectedPlan == .yearly
-                ) {
-                    selectedPlan = .yearly
-                }
+                ) { selectedPlan = .yearly }
             }
 
-            // 购买按钮
             Button(action: {
                 if let product = selectedProduct {
                     Task { await subscriptionManager.purchase(product: product) }
@@ -263,39 +296,27 @@ struct PremiumStatusCard: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(0.85)
                     } else {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 15))
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14))
                     }
-                    Text(subscriptionManager.isLoading ? "处理中…" : "马上续费")
+                    Text(subscriptionManager.isLoading ? "处理中…" : "立即续费")
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
+                .padding(.vertical, 14)
                 .background(
-                    LinearGradient(
-                        colors: [Color(hex: "#FF9500"), Color(hex: "#FF6B00")],
-                        startPoint: .leading, endPoint: .trailing
-                    )
+                    LinearGradient(colors: [Color(hex: "#FF9500"), Color(hex: "#FF6B00")],
+                                   startPoint: .leading, endPoint: .trailing)
                 )
                 .cornerRadius(13)
-                
             }
             .disabled(subscriptionManager.isLoading)
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [Color.yellow.opacity(0.08), Color.orange.opacity(0.05)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-        )
+        .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.yellow.opacity(0.35), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 3)
     }
 }
 
