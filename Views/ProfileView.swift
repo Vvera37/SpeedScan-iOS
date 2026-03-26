@@ -289,19 +289,60 @@ private struct VIPBadgeItem: View {
 }
 
 // MARK: - 已开通会员卡（续费选项）
-// MARK: - 已开通会员卡（管理订阅）
+// MARK: - 已开通会员卡（管理订阅 / 升级）
 struct PremiumStatusCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
 
+    // 当前是否月度会员（可升级）
+    private var isMonthly: Bool {
+        subscriptionManager.currentPlanName == "月度会员"
+    }
+
     var body: some View {
         VStack(spacing: 14) {
-            // 说明文字
+
+            // ── 月度会员：展示升级年度入口 ────────────────────
+            if isMonthly, let yearlyProduct = subscriptionManager.yearlyProduct {
+                // 升级提示
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .foregroundColor(.orange)
+                        .font(.system(size: 16))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("升级年度会员，省 66%")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("仅需 \(yearlyProduct.displayPrice)/年，相当于 ¥1/月")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button(action: {
+                        Task { await subscriptionManager.purchase(product: yearlyProduct) }
+                    }) {
+                        Text("立即升级")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color.orange)
+                            .cornerRadius(20)
+                    }
+                    .disabled(subscriptionManager.isLoading)
+                }
+                .padding(14)
+                .background(Color.orange.opacity(0.07))
+                .cornerRadius(12)
+
+                Divider()
+            }
+
+            // ── 管理订阅 ──────────────────────────────────────
             Text("您已开通自动续费，可在系统设置中管理")
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // 管理订阅按钮 → 跳转苹果系统订阅管理页
             Button(action: {
                 if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
                     UIApplication.shared.open(url)
