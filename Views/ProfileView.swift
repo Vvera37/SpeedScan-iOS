@@ -289,55 +289,28 @@ private struct VIPBadgeItem: View {
 }
 
 // MARK: - 已开通会员卡（续费选项）
+// MARK: - 已开通会员卡（管理订阅）
 struct PremiumStatusCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
-    @State private var selectedPlan: Plan = .yearly  // 默认选年度（更划算）
-
-    private var selectedProduct: Product? {
-        selectedPlan == .monthly
-            ? subscriptionManager.monthlyProduct
-            : subscriptionManager.yearlyProduct
-    }
 
     var body: some View {
         VStack(spacing: 14) {
-            Text("续费会员")
-                .font(.system(size: 15, weight: .semibold))
+            // 说明文字
+            Text("您已开通自动续费，可在系统设置中管理")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundColor(.primary)
 
-            HStack(spacing: 12) {
-                PriceCard(
-                    title: "月度会员",
-                    price: subscriptionManager.monthlyProduct?.displayPrice ?? "¥2",
-                    period: "/月",
-                    tag: nil,
-                    isSelected: selectedPlan == .monthly
-                ) { selectedPlan = .monthly }
-                PriceCard(
-                    title: "年度会员",
-                    price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
-                    period: "/年",
-                    tag: "省66%",
-                    isSelected: selectedPlan == .yearly
-                ) { selectedPlan = .yearly }
-            }
-
+            // 管理订阅按钮 → 跳转苹果系统订阅管理页
             Button(action: {
-                if let product = selectedProduct {
-                    Task { await subscriptionManager.purchase(product: product) }
+                if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions") {
+                    UIApplication.shared.open(url)
                 }
             }) {
                 HStack(spacing: 8) {
-                    if subscriptionManager.isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.85)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14))
-                    }
-                    Text(subscriptionManager.isLoading ? "处理中…" : "立即续费")
+                    Image(systemName: "gear")
+                        .font(.system(size: 14))
+                    Text("管理订阅")
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.white)
@@ -349,7 +322,6 @@ struct PremiumStatusCard: View {
                 )
                 .cornerRadius(13)
             }
-            .disabled(subscriptionManager.isLoading)
         }
         .padding(20)
         .background(Color(UIColor.systemBackground))
@@ -361,7 +333,7 @@ struct PremiumStatusCard: View {
 // MARK: - 未开通订阅购买卡片
 struct SubscriptionCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
-    @State private var selectedPlan: Plan = .monthly
+    @State private var selectedPlan: Plan = .yearly  // 默认年度（更划算）
     let onNeedLogin: () -> Void
 
     private var selectedProduct: Product? {
@@ -370,9 +342,30 @@ struct SubscriptionCard: View {
             : subscriptionManager.yearlyProduct
     }
 
+    // 按钮价格文案
+    private var buttonPriceText: String {
+        if selectedPlan == .monthly {
+            return subscriptionManager.monthlyProduct?.displayPrice ?? "¥2"
+        } else {
+            return subscriptionManager.yearlyProduct?.displayPrice ?? "¥12"
+        }
+    }
+
+    // 到期续费说明
+    private var renewalText: String {
+        if selectedPlan == .monthly {
+            let price = subscriptionManager.monthlyProduct?.displayPrice ?? "¥2"
+            return "到期后 \(price)/月 自动续费，可随时取消"
+        } else {
+            let price = subscriptionManager.yearlyProduct?.displayPrice ?? "¥12"
+            return "到期后 \(price)/年 自动续费，可随时取消"
+        }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
-            // 标题
+
+            // ── 标题 ──────────────────────────────────────────
             HStack {
                 Image(systemName: "crown.fill")
                     .foregroundColor(.yellow)
@@ -382,17 +375,18 @@ struct SubscriptionCard: View {
                 Spacer()
             }
 
-            // 会员权益
+            // ── 权益列表 ──────────────────────────────────────
             VStack(spacing: 10) {
-                BenefitRow(icon: "doc.text.fill", iconColor: Color(hex: "#007AFF"), text: "无水印导出 Word 文档")
-                // 多语言翻译功能暂时下线，一期不做
-                // BenefitRow(icon: "character.bubble.fill", iconColor: Color(hex: "#34C759"), text: "多语言翻译无限制")
-                BenefitRow(icon: "doc.richtext.fill", iconColor: Color(hex: "#FF9500"), text: "PDF 多页批量转换")
+                BenefitRow(icon: "doc.viewfinder.fill", iconColor: Color(hex: "#FF9500"), text: "AI 识别无限次（印刷体 + 手写体）")
+                BenefitRow(icon: "doc.fill",            iconColor: Color(hex: "#34C759"), text: "图片转 PDF 无限次")
+                BenefitRow(icon: "doc.richtext.fill",   iconColor: Color(hex: "#007AFF"), text: "PDF 转 Word 无限次")
+                BenefitRow(icon: "square.and.arrow.up.fill", iconColor: Color(hex: "#AF52DE"), text: "导出文件无水印")
+                BenefitRow(icon: "clock.fill",          iconColor: Color(hex: "#FF6B00"), text: "历史记录保留最近 20 条")
             }
 
             Divider()
 
-            // 价格卡片选择
+            // ── 套餐选择 ──────────────────────────────────────
             HStack(spacing: 12) {
                 PriceCard(
                     title: "月度会员",
@@ -400,21 +394,18 @@ struct SubscriptionCard: View {
                     period: "/月",
                     tag: nil,
                     isSelected: selectedPlan == .monthly
-                ) {
-                    selectedPlan = .monthly
-                }
+                ) { selectedPlan = .monthly }
+
                 PriceCard(
                     title: "年度会员",
                     price: subscriptionManager.yearlyProduct?.displayPrice ?? "¥12",
                     period: "/年",
-                    tag: "省66%",
+                    tag: "推荐",
                     isSelected: selectedPlan == .yearly
-                ) {
-                    selectedPlan = .yearly
-                }
+                ) { selectedPlan = .yearly }
             }
 
-            // 主购买按钮
+            // ── 主购买按钮 ────────────────────────────────────
             Button(action: {
                 if let product = selectedProduct {
                     Task { await subscriptionManager.purchase(product: product) }
@@ -429,9 +420,9 @@ struct SubscriptionCard: View {
                             .scaleEffect(0.85)
                     } else {
                         Image(systemName: "crown.fill")
-                            .font(.system(size: 15))
+                            .font(.system(size: 14))
                     }
-                    Text(subscriptionManager.isLoading ? "处理中…" : "立即解锁高级功能")
+                    Text(subscriptionManager.isLoading ? "处理中…" : "确认协议并支付 \(buttonPriceText)")
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.black.opacity(0.75))
@@ -444,12 +435,30 @@ struct SubscriptionCard: View {
                     )
                 )
                 .cornerRadius(13)
-                
             }
             .disabled(subscriptionManager.isLoading)
             .buttonStyle(ScaleButtonStyle())
 
+            // ── 续费说明 + 协议 ───────────────────────────────
+            VStack(spacing: 6) {
+                Text(renewalText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
 
+                HStack(spacing: 3) {
+                    Text("购买前请阅读")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Button("《扫描鸡会员服务协议》") {
+                        if let url = URL(string: "https://vmingstudio.com/vip-terms") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "#007AFF"))
+                }
+            }
         }
         .padding(20)
         .background(Color(UIColor.systemBackground))
