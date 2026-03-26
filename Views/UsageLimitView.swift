@@ -60,11 +60,11 @@ struct UsageLimitView: View {
 
                     // ── 权益列表 ──────────────────────────────────
                     VStack(alignment: .leading, spacing: 14) {
-                        BenefitRow(icon: "doc.viewfinder.fill",  text: "无限次 AI 识别（印刷体+手写体）")
-                        BenefitRow(icon: "doc.fill",             text: "无限次图片转 PDF")
-                        BenefitRow(icon: "doc.text.fill",        text: "无限次 PDF 转 Word")
-                        BenefitRow(icon: "clock.fill",           text: "历史记录保留最近 20 条")
-                        BenefitRow(icon: "square.and.arrow.up.fill", text: "导出文件无水印")
+                        LimitBenefitRow(icon: "doc.viewfinder.fill",  text: "无限次 AI 识别（印刷体+手写体）")
+                        LimitBenefitRow(icon: "doc.fill",             text: "无限次图片转 PDF")
+                        LimitBenefitRow(icon: "doc.text.fill",        text: "无限次 PDF 转 Word")
+                        LimitBenefitRow(icon: "clock.fill",           text: "历史记录保留最近 20 条")
+                        LimitBenefitRow(icon: "square.and.arrow.up.fill", text: "导出文件无水印")
                     }
                     .padding(.horizontal, 28)
                     .padding(.bottom, 32)
@@ -76,7 +76,7 @@ struct UsageLimitView: View {
                     } else {
                         VStack(spacing: 12) {
                             ForEach(subscriptionManager.products, id: \.id) { product in
-                                SubscriptionCard(
+                                LimitSubscriptionCard(
                                     product: product,
                                     isPurchasing: isPurchasing,
                                     onTap: { purchase(product: product) }
@@ -148,8 +148,8 @@ struct UsageLimitView: View {
     }
 }
 
-// MARK: - 权益行
-private struct BenefitRow: View {
+// MARK: - 权益行（UsageLimitView 专用，避免与 ProfileView 的 BenefitRow 重名）
+private struct LimitBenefitRow: View {
     let icon: String
     let text: String
 
@@ -164,8 +164,8 @@ private struct BenefitRow: View {
     }
 }
 
-// MARK: - 订阅卡片
-private struct SubscriptionCard: View {
+// MARK: - 订阅选择卡片（UsageLimitView 专用）
+private struct LimitSubscriptionCard: View {
     let product: Product
     let isPurchasing: Bool
     let onTap: () -> Void
