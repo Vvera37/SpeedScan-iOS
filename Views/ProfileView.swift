@@ -41,6 +41,8 @@ struct ProfileView: View {
                             PremiumStatusCard(
                                 subscriptionManager: subscriptionManager
                             )
+                            // id 跟随 planName 变化，强制视图重建（升级后立刻刷新）
+                            .id(subscriptionManager.currentPlanName)
                             .padding(.horizontal, 20)
                         } else {
                             // 未开通：展示购买卡片

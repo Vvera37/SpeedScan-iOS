@@ -111,8 +111,11 @@ class SubscriptionManager: ObservableObject {
                 }
                 showPurchaseSuccess = true
 
-                // ⚠️ 不在这里调 checkSubscriptionStatus()
-                // entitlements 有延迟，调了反而会覆盖掉正确的日期
+                // 延迟2秒后再跑一次完整校验（entitlements此时已写入）
+                // 确保升级场景下 currentPlanName / expiryDate 最终一致
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    Task { await self.checkSubscriptionStatus() }
+                }
 
             case .userCancelled:
                 break
