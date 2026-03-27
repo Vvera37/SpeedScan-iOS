@@ -49,8 +49,22 @@ final class ScanRecord {
         }
     }
     
-    /// Word 文件是否存在
+    /// 动态解析当前沙盒下的完整路径（兼容 App 更新后 UUID 变化）
+    var resolvedWordFilePath: String {
+        // 如果存储的是绝对路径且文件存在，直接用
+        if FileManager.default.fileExists(atPath: wordFilePath) {
+            return wordFilePath
+        }
+        // 否则用文件名在当前 Documents 目录下重新拼接
+        let fileName = (wordFilePath as NSString).lastPathComponent
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return wordFilePath
+        }
+        return docs.appendingPathComponent(fileName).path
+    }
+
+    /// Word 文件是否存在（自动兼容路径变化）
     var wordFileExists: Bool {
-        FileManager.default.fileExists(atPath: wordFilePath)
+        FileManager.default.fileExists(atPath: resolvedWordFilePath)
     }
 }

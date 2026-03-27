@@ -148,11 +148,8 @@ struct HistoryView: View {
 
     // MARK: - 打开 Word 文件预览
     private func openRecord(_ record: ScanRecord) {
-        guard record.wordFileExists else {
-            // 文件不存在，提示
-            return
-        }
-        quickLookURL = URL(fileURLWithPath: record.wordFilePath)
+        guard record.wordFileExists else { return }
+        quickLookURL = URL(fileURLWithPath: record.resolvedWordFilePath)
     }
 
     // MARK: - 删除记录
@@ -161,7 +158,7 @@ struct HistoryView: View {
             let record = records[index]
             // 同时删除磁盘上的 Word 文件
             if record.wordFileExists {
-                try? FileManager.default.removeItem(atPath: record.wordFilePath)
+                try? FileManager.default.removeItem(atPath: record.resolvedWordFilePath)
             }
             modelContext.delete(record)
         }
