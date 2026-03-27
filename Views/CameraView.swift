@@ -286,8 +286,6 @@ struct CameraView: View {
                             onAlbum:  { openPHPicker() },
                             onClose:  { dismissSafely() }
                         )
-                        // modeTabBar 悬浮在引导页底部
-                        VStack { Spacer(); modeTabBar }
 
                     case .preview:
                         PPTPreviewView(
@@ -715,12 +713,12 @@ struct PPTPreviewView: View {
     @State private var showAbandonAlert = false
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible()),
-                            GridItem(.flexible()), GridItem(.flexible())]
+                            GridItem(.flexible())]
     var body: some View {
         ZStack {
-            Color(hex: "#1C1C1E").ignoresSafeArea()
+            Color(UIColor.systemBackground).ignoresSafeArea()
             VStack(spacing: 0) {
-                // 顶部导航栏
+                // 顶部导航栏（系统原生风格，无背景色）
                 HStack {
                     Button(action: { showAbandonAlert = true }) {
                         Text("放弃")
@@ -729,15 +727,18 @@ struct PPTPreviewView: View {
                     }
                     Spacer()
                     Text("PDF 预览 (\(pages.count)页)")
-                        .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color(UIColor.label))
                     Spacer()
                     Button(action: onConvert) {
                         Text("生成 PDF")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(pages.isEmpty ? .gray : Color(hex: "#34C759"))
+                            .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#34C759"))
                     }.disabled(pages.isEmpty)
                 }
-                .padding(.horizontal, 20).padding(.vertical, 14).background(Color(hex: "#2C2C2E"))
+                .padding(.horizontal, 20).padding(.vertical, 14)
+
+                Divider()
 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -750,50 +751,57 @@ struct PPTPreviewView: View {
                             )
                         }
                     }
-                    .padding(16).padding(.bottom, 100)
+                    .padding(16).padding(.bottom, 120)
                 }
                 Spacer(minLength: 0)
             }
 
-            // 底部操作栏（重新设计）
+            // 底部操作栏（卡片渐变风格，与 ScanView 一致）
             VStack {
                 Spacer()
                 HStack(spacing: 12) {
                     // 从相册选
                     Button(action: onAlbum) {
-                        VStack(spacing: 6) {
+                        HStack(spacing: 10) {
                             Image(systemName: "photo.on.rectangle.fill")
-                                .font(.system(size: 20))
+                                .font(.system(size: 20, weight: .medium))
                             Text("从相册添加")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(hex: "#2C2C2E"))
-                        .cornerRadius(14)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(colors: [Color(hex: "#636e72"), Color(hex: "#2d3436")],
+                                           startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
                     }
+                    .buttonStyle(ScaleButtonStyle())
+
                     // 拍照
                     Button(action: onCamera) {
-                        VStack(spacing: 6) {
+                        HStack(spacing: 10) {
                             Image(systemName: "camera.fill")
-                                .font(.system(size: 20))
+                                .font(.system(size: 20, weight: .medium))
                             Text("拍下一张")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.black)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(hex: "#34C759"))
-                        .cornerRadius(14)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(colors: [Color(hex: "#34C759"), Color(hex: "#248A3D")],
+                                           startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: Color(hex: "#34C759").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
+                    .buttonStyle(ScaleButtonStyle())
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-                .background(
-                    Color(hex: "#1C1C1E")
-                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: -4)
-                )
+                .padding(.bottom, 32)
             }
             .ignoresSafeArea(edges: .bottom)
         }
@@ -813,7 +821,8 @@ struct PPTPageTile: View {
     let onAlbumReplace: () -> Void
     let onDelete: () -> Void
 
-    private let tileAspect: CGFloat = 4.0 / 3.0
+    // 横向比例：16:9（接近电脑屏幕/PDF页面比例）
+    private let tileAspect: CGFloat = 9.0 / 16.0
 
     var body: some View {
         VStack(spacing: 6) {
@@ -825,35 +834,37 @@ struct PPTPageTile: View {
                         .cornerRadius(8)
                     Button(action: onDelete) {
                         ZStack {
-                            Circle().fill(Color.black.opacity(0.6)).frame(width: 22, height: 22)
-                            Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white)
+                            Circle().fill(Color.black.opacity(0.55)).frame(width: 24, height: 24)
+                            Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundColor(.white)
                         }
                     }.padding(4)
                 }
             }
-            .aspectRatio(1.0 / tileAspect, contentMode: .fit)
+            .aspectRatio(16.0 / 9.0, contentMode: .fit)
 
-            Text("第 \(index + 1) 页").font(.system(size: 11, weight: .medium)).foregroundColor(Color(white: 0.7))
+            Text("第 \(index + 1) 页")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(UIColor.secondaryLabel))
 
             // 两个按钮：重拍 + 相册替换
             HStack(spacing: 6) {
                 Button(action: onRetake) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "camera").font(.system(size: 10))
-                        Text("重拍").font(.system(size: 10, weight: .medium))
+                    HStack(spacing: 4) {
+                        Image(systemName: "camera").font(.system(size: 12))
+                        Text("重拍").font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 5)
-                    .background(Color(white: 0.3)).cornerRadius(5)
+                    .foregroundColor(Color(UIColor.label))
+                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+                    .background(Color(UIColor.secondarySystemBackground)).cornerRadius(7)
                 }
                 Button(action: onAlbumReplace) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "photo").font(.system(size: 10))
-                        Text("相册").font(.system(size: 10, weight: .medium))
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo").font(.system(size: 12))
+                        Text("相册").font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 5)
-                    .background(Color(white: 0.3)).cornerRadius(5)
+                    .foregroundColor(Color(UIColor.label))
+                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+                    .background(Color(UIColor.secondarySystemBackground)).cornerRadius(7)
                 }
             }
         }

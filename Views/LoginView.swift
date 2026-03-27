@@ -45,7 +45,7 @@ struct LoginView: View {
             }
 
             // 背景
-            Color.white
+            Color(UIColor.systemBackground)
                 .ignoresSafeArea()
                 // 点击空白区域收起键盘
                 .onTapGesture { hideKeyboard() }

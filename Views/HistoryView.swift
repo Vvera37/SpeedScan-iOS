@@ -62,19 +62,26 @@ struct HistoryView: View {
                             VStack(spacing: 12) {
                                 Image(systemName: "lock.fill")
                                     .font(.system(size: 28))
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(Color(hex: "#007AFF"))
                                 Text("还有 \(records.count - Self.freeLimit) 条记录")
                                     .font(.system(size: 15, weight: .medium))
                                 Text("开通 VIP 查看最近 20 条历史记录")
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary)
-                                Button("解锁 VIP") { showUsageLimit = true }
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 32)
-                                    .padding(.vertical, 10)
-                                    .background(Color.orange)
-                                    .cornerRadius(20)
+                                Button(action: { showUsageLimit = true }) {
+                                    Text("解锁 VIP")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 12)
+                                        .background(
+                                            LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                                           startPoint: .leading, endPoint: .trailing)
+                                        )
+                                        .cornerRadius(16)
+                                        .shadow(color: Color(hex: "#007AFF").opacity(0.35), radius: 8, x: 0, y: 4)
+                                }
+                                .buttonStyle(ScaleButtonStyle())
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
@@ -218,18 +225,60 @@ struct NotLoggedInEmptyState: View {
 // MARK: - 空历史态
 struct EmptyHistoryState: View {
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "clock.badge.xmark")
-                .font(.system(size: 64))
-                .foregroundColor(.secondary.opacity(0.5))
-            Text("暂无扫描记录")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.secondary)
-            Text("扫描并导出 Word 后，记录会显示在这里")
-                .font(.system(size: 14))
+        VStack(spacing: 0) {
+            Spacer()
+
+            // 插图区
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#007AFF").opacity(0.08))
+                    .frame(width: 120, height: 120)
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 52, weight: .light))
+                    .foregroundColor(Color(hex: "#007AFF").opacity(0.7))
+            }
+            .padding(.bottom, 24)
+
+            // 标题
+            Text("还没有扫描记录")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.primary)
+                .padding(.bottom, 8)
+
+            // 说明
+            Text("扫描文字或拍照转 PDF 后\n记录会自动保存在这里")
+                .font(.system(size: 15))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .lineSpacing(4)
+                .padding(.horizontal, 48)
+                .padding(.bottom, 32)
+
+            // 「开始扫描」按钮 — 切换到扫描 Tab
+            Button(action: {
+                // 通过 NotificationCenter 通知 ContentView 切换到 ScanView Tab
+                NotificationCenter.default.post(name: .switchToScanTab, object: nil)
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "camera.viewfinder")
+                        .font(.system(size: 17, weight: .medium))
+                    Text("开始扫描")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 16)
+                .padding(.horizontal, 48)
+                .background(
+                    LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                   startPoint: .leading, endPoint: .trailing)
+                )
+                .cornerRadius(16)
+                .shadow(color: Color(hex: "#007AFF").opacity(0.35), radius: 10, x: 0, y: 5)
+            }
+            .buttonStyle(ScaleButtonStyle())
+
+            Spacer()
+            Spacer()
         }
     }
 }

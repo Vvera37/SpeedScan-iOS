@@ -45,7 +45,15 @@ struct MainTabView: View {
                 .tag(2)
         }
         .accentColor(Color(hex: "#007AFF"))
+        .onReceive(NotificationCenter.default.publisher(for: .switchToScanTab)) { _ in
+            selectedTab = 0
+        }
     }
+}
+
+// MARK: - Notification 扩展
+extension Notification.Name {
+    static let switchToScanTab = Notification.Name("switchToScanTab")
 }
 
 // MARK: - Preview
