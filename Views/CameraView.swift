@@ -718,25 +718,25 @@ struct PPTPreviewView: View {
         ZStack {
             Color(UIColor.systemBackground).ignoresSafeArea()
             VStack(spacing: 0) {
-                // 顶部导航栏（系统原生风格，无背景色）
+                // 顶部导航栏（对齐系统 NavigationBar 样式）
                 HStack {
                     Button(action: { showAbandonAlert = true }) {
                         Text("放弃")
-                            .font(.system(size: 16))
+                            .font(.system(size: 17))          // 系统导航按钮标准字号
                             .foregroundColor(Color(hex: "#FF3B30"))
                     }
                     Spacer()
                     Text("PDF 预览 (\(pages.count)页)")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))  // 系统标题字号
                         .foregroundColor(Color(UIColor.label))
                     Spacer()
                     Button(action: onConvert) {
                         Text("生成 PDF")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 17))          // 系统导航按钮标准字号
                             .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#34C759"))
                     }.disabled(pages.isEmpty)
                 }
-                .padding(.horizontal, 20).padding(.vertical, 14)
+                .padding(.horizontal, 16).padding(.vertical, 11)  // 系统 NavigationBar 标准内边距
 
                 Divider()
 
