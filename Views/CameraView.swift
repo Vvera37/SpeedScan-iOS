@@ -639,48 +639,77 @@ struct PPTGuideView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color(UIColor.systemBackground).ignoresSafeArea()
             VStack(spacing: 0) {
+                // 关闭按钮
                 HStack {
                     Button(action: onClose) {
-                        Image(systemName: "xmark").font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.white).frame(width: 44, height: 44)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(Color(UIColor.secondaryLabel))
+                            .frame(width: 44, height: 44)
                     }
                     Spacer()
                 }
                 .padding(.horizontal, 20).padding(.top, 8)
+
                 Spacer()
-                Image(systemName: "doc.richtext.fill").font(.system(size: 64))
-                    .foregroundColor(Color(hex: "#34C759")).padding(.bottom, 24)
+
+                // 图标
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(hex: "#34C759").opacity(0.12))
+                        .frame(width: 88, height: 88)
+                    Image(systemName: "doc.richtext.fill")
+                        .font(.system(size: 44, weight: .medium))
+                        .foregroundColor(Color(hex: "#34C759"))
+                }
+                .padding(.bottom, 20)
+
+                // 标题
                 Text("拍照扫描，生成 PDF")
-                    .font(.system(size: 22, weight: .bold)).foregroundColor(.white).padding(.bottom, 8)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.primary)
+                    .padding(.bottom, 24)
+
+                // 步骤卡片
                 VStack(alignment: .leading, spacing: 14) {
                     PPTGuideStep(number: "1", text: "拍摄 或 从相册选取每一张图片")
                     PPTGuideStep(number: "2", text: "预览并整理页面顺序，可删除或重拍")
                     PPTGuideStep(number: "3", text: "一键合并为 PDF 文件并保存分享")
                 }
-                .padding(.horizontal, 32).padding(.vertical, 24)
-                .background(Color.white.opacity(0.07)).cornerRadius(16)
+                .padding(.horizontal, 20).padding(.vertical, 20)
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(16)
                 .padding(.horizontal, 24).padding(.bottom, 40)
-                HStack(spacing: 16) {
+
+                // 操作按钮
+                HStack(spacing: 12) {
                     Button(action: onCamera) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "camera.fill")
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera.fill").font(.system(size: 17, weight: .medium))
                             Text("拍照扫描").font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(Color(hex: "#34C759")).cornerRadius(14)
+                        .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(LinearGradient(colors: [Color(hex: "#34C759"), Color(hex: "#248A3D")],
+                                                   startPoint: .leading, endPoint: .trailing))
+                        .cornerRadius(16)
+                        .shadow(color: Color(hex: "#34C759").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
+                    .buttonStyle(ScaleButtonStyle())
+
                     Button(action: onAlbum) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "photo.on.rectangle")
+                        HStack(spacing: 8) {
+                            Image(systemName: "photo.on.rectangle.fill").font(.system(size: 17, weight: .medium))
                             Text("从相册选择").font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(Color.white.opacity(0.15)).cornerRadius(14)
+                        .foregroundColor(Color(UIColor.label)).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(16)
                     }
+                    .buttonStyle(ScaleButtonStyle())
                 }
-                .padding(.horizontal, 24).padding(.bottom, 80)
+                .padding(.horizontal, 24).padding(.bottom, 60)
             }
         }
     }
@@ -691,10 +720,10 @@ struct PPTGuideStep: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
-                Circle().fill(Color(hex: "#34C759").opacity(0.2)).frame(width: 28, height: 28)
+                Circle().fill(Color(hex: "#34C759").opacity(0.15)).frame(width: 28, height: 28)
                 Text(number).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#34C759"))
             }
-            Text(text).font(.system(size: 14)).foregroundColor(Color(white: 0.85))
+            Text(text).font(.system(size: 15)).foregroundColor(.primary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
         }
