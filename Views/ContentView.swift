@@ -34,7 +34,7 @@ struct MainTabView: View {
 
             HistoryView()
                 .tabItem {
-                    Label("历史", systemImage: "clock")
+                    Label("导出", systemImage: "clock")
                 }
                 .tag(1)
 

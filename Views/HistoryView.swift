@@ -21,8 +21,8 @@ struct HistoryView: View {
     @State private var showUsageLimit = false
 
     // 免费用户只展示最近 3 条，会员展示最近 20 条
-    private static let freeLimit = 3
-    private static let vipLimit  = 20
+    static let freeLimit = 3
+    static let vipLimit  = 20
 
     private var displayedRecords: [ScanRecord] {
         let isVip = subscriptionManager.isPremium
@@ -65,7 +65,7 @@ struct HistoryView: View {
                                     .foregroundColor(Color(hex: "#007AFF"))
                                 Text("还有 \(records.count - Self.freeLimit) 条记录")
                                     .font(.system(size: 15, weight: .medium))
-                                Text("开通 VIP 查看最近 20 条历史记录")
+                                Text("开通会员，最多查看最近 \(Self.vipLimit) 条导出记录")
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary)
                                 Button(action: { showUsageLimit = true }) {
@@ -94,24 +94,48 @@ struct HistoryView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .navigationTitle("历史记录")
+            .navigationTitle("导出记录")
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                // 隐私说明栏
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "#34C759"))
-                        .padding(.top, 1)
-                    Text("文档加密存储于本机，从不上传云端\n数据归您所有，随时可删除")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .lineSpacing(3)
+                VStack(spacing: 0) {
+                    // 条数说明
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(UIColor.tertiaryLabel))
+                        Text("普通用户最多保留 \(HistoryView.freeLimit) 条，")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(UIColor.tertiaryLabel))
+                        + Text("会员用户")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(hex: "#007AFF"))
+                        + Text("最多保留 \(HistoryView.vipLimit) 条")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(UIColor.tertiaryLabel))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
+
+                    Divider()
+
+                    // 隐私说明栏
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "#34C759"))
+                            .padding(.top, 1)
+                        Text("文档加密存储于本机，从不上传云端\n数据归您所有，随时可删除")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .lineSpacing(3)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
                 .background(Color(UIColor.systemBackground))
             }
             .quickLookPreview($quickLookURL)
@@ -212,9 +236,9 @@ struct NotLoggedInEmptyState: View {
             Image(systemName: "person.crop.circle.badge.exclamationmark")
                 .font(.system(size: 64))
                 .foregroundColor(Color(hex: "#007AFF").opacity(0.6))
-            Text("登录后查看历史记录")
+            Text("登录后查看导出记录")
                 .font(.system(size: 18, weight: .semibold))
-            Text("您的扫描历史将保存在本设备")
+            Text("每次导出 Word 的记录将保存在本设备")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
         }
