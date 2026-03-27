@@ -23,6 +23,7 @@ struct OCRResultView: View {
     @State private var copySuccess = false
     @State private var isExporting = false
     @State private var showLoginSheet = false
+    @State private var exportedFileURL: URL? = nil
 
     var body: some View {
         NavigationStack {
@@ -96,6 +97,25 @@ struct OCRResultView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("完成") { onDismiss() }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        if let url = exportedFileURL {
+                            shareFile(url: url)
+                        } else {
+                            // 未导出时提示先导出
+                            let ac = UIAlertController(title: "请先导出", message: "点击「导出 Word」生成文档后即可分享", preferredStyle: .alert)
+                            ac.addAction(UIAlertAction(title: "好的", style: .default))
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let rootVC = windowScene.windows.first?.rootViewController {
+                                var topVC = rootVC
+                                while let presented = topVC.presentedViewController { topVC = presented }
+                                topVC.present(ac, animated: true)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
             }
             .sheet(isPresented: $showLoginSheet) {
                 LoginView(isModal: true).environmentObject(appState)
@@ -132,7 +152,9 @@ struct OCRResultView: View {
                     detectedLanguage: "zh-Hans"
                 ))
                 try? modelContext.save()
-                shareFile(url: URL(fileURLWithPath: path))
+                let fileURL = URL(fileURLWithPath: path)
+                exportedFileURL = fileURL
+                shareFile(url: fileURL)
             }
         }
     }

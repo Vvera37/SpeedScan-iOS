@@ -22,6 +22,7 @@ struct LoginView: View {
     @State private var showError: Bool = false
     @State private var agreedToTerms: Bool = false
     @State private var isShowingAgreementToast: Bool = false
+    @State private var isShowingSuccessToast: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,27 @@ struct LoginView: View {
                 }
                 .zIndex(999)
                 .animation(.easeInOut(duration: 0.25), value: isShowingAgreementToast)
+            }
+
+            if isShowingSuccessToast {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(Color(hex: "#34C759"))
+                        Text("登录成功")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.black.opacity(0.75))
+                    .cornerRadius(24)
+                    .padding(.bottom, 80)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+                .zIndex(999)
+                .animation(.easeInOut(duration: 0.25), value: isShowingSuccessToast)
             }
 
             // 背景
@@ -315,6 +337,12 @@ struct LoginView: View {
                     phone: phoneNumber,
                     expiresAt: response.expiryDate
                 )
+                // 登录成功 Toast
+                withAnimation { isShowingSuccessToast = true }
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_800_000_000)
+                    await MainActor.run { withAnimation { isShowingSuccessToast = false } }
+                }
             }
         } catch {
             await MainActor.run {
