@@ -764,8 +764,8 @@ struct PPTPreviewView: View {
                     Spacer()
                     Button(action: onConvert) {
                         Text("生成 PDF")
-                            .font(.system(size: 17))          // 系统导航按钮标准字号
-                            .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#34C759"))
+                            .font(.system(size: 17))
+                            .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#5856D6"))
                     }.disabled(pages.isEmpty)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 11)  // 系统 NavigationBar 标准内边距
@@ -792,7 +792,7 @@ struct PPTPreviewView: View {
             VStack {
                 Spacer()
                 HStack(spacing: 12) {
-                    // 从相册选
+                    // 从相册选（次按钮：系统背景色，与其他页面一致）
                     Button(action: onAlbum) {
                         HStack(spacing: 10) {
                             Image(systemName: "photo.on.rectangle.fill")
@@ -800,19 +800,15 @@ struct PPTPreviewView: View {
                             Text("从相册添加")
                                 .font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(UIColor.label))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(colors: [Color(hex: "#636e72"), Color(hex: "#2d3436")],
-                                           startPoint: .leading, endPoint: .trailing)
-                        )
+                        .background(Color(UIColor.secondarySystemBackground))
                         .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(ScaleButtonStyle())
 
-                    // 拍照
+                    // 拍照（主按钮：紫色渐变，与入口/引导页一致）
                     Button(action: onCamera) {
                         HStack(spacing: 10) {
                             Image(systemName: "camera.fill")
@@ -824,11 +820,11 @@ struct PPTPreviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            LinearGradient(colors: [Color(hex: "#34C759"), Color(hex: "#248A3D")],
+                            LinearGradient(colors: [Color(hex: "#5856D6"), Color(hex: "#3634A3")],
                                            startPoint: .leading, endPoint: .trailing)
                         )
                         .cornerRadius(16)
-                        .shadow(color: Color(hex: "#34C759").opacity(0.35), radius: 10, x: 0, y: 5)
+                        .shadow(color: Color(hex: "#5856D6").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(ScaleButtonStyle())
                 }
