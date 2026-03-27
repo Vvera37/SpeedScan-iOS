@@ -653,16 +653,16 @@ struct PPTGuideView: View {
                 }
                 .padding(.horizontal, 20).padding(.top, 8)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 // 图标
                 ZStack {
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(hex: "#34C759").opacity(0.12))
+                        .fill(Color(hex: "#5856D6").opacity(0.12))
                         .frame(width: 88, height: 88)
                     Image(systemName: "doc.richtext.fill")
                         .font(.system(size: 44, weight: .medium))
-                        .foregroundColor(Color(hex: "#34C759"))
+                        .foregroundColor(Color(hex: "#5856D6"))
                 }
                 .padding(.bottom, 20)
 
@@ -691,10 +691,10 @@ struct PPTGuideView: View {
                             Text("拍照扫描").font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(LinearGradient(colors: [Color(hex: "#34C759"), Color(hex: "#248A3D")],
+                        .background(LinearGradient(colors: [Color(hex: "#5856D6"), Color(hex: "#3634A3")],
                                                    startPoint: .leading, endPoint: .trailing))
                         .cornerRadius(16)
-                        .shadow(color: Color(hex: "#34C759").opacity(0.35), radius: 10, x: 0, y: 5)
+                        .shadow(color: Color(hex: "#5856D6").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(ScaleButtonStyle())
 
@@ -709,7 +709,10 @@ struct PPTGuideView: View {
                     }
                     .buttonStyle(ScaleButtonStyle())
                 }
-                .padding(.horizontal, 24).padding(.bottom, 60)
+                .padding(.horizontal, 24).padding(.bottom, 32)
+
+                // 非对称 Spacer：内容区整体上移到视觉中心偏上
+                Spacer(minLength: 0).frame(height: 80)
             }
         }
     }
@@ -720,8 +723,8 @@ struct PPTGuideStep: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
-                Circle().fill(Color(hex: "#34C759").opacity(0.15)).frame(width: 28, height: 28)
-                Text(number).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#34C759"))
+                Circle().fill(Color(hex: "#5856D6").opacity(0.15)).frame(width: 28, height: 28)
+                Text(number).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#5856D6"))
             }
             Text(text).font(.system(size: 15)).foregroundColor(.primary)
                 .fixedSize(horizontal: false, vertical: true)
