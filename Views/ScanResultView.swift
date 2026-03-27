@@ -113,21 +113,6 @@ struct ScanResultView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("完成") { dismiss() }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        if let url = exportedFileURL {
-                            shareFile(url: url)
-                        } else {
-                            viewModel.alertItem = AlertItem(
-                                title: Text("请先导出"),
-                                message: Text("点击「导出 Word」生成文档后即可分享"),
-                                dismissButton: .default(Text("好的"))
-                            )
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                }
             }
             .alert(item: $viewModel.alertItem) { alert in
                 Alert(title: alert.title, message: alert.message, dismissButton: alert.dismissButton)
