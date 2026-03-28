@@ -56,23 +56,22 @@ class AppState: ObservableObject {
     }
 
     // MARK: - 记录访客扫描（返回是否允许继续）
+    // ⚠️ 不设 showLoginRequired，调用方自己弹 sheet
     func recordGuestScan() -> Bool {
         guard !isLoggedIn else { return true }
         guestScanCount += 1
         UserDefaults.standard.set(guestScanCount, forKey: scanCountKey)
         if guestScanCount > AppState.guestScanLimit {
-            loginRequiredReason = "为确保您的数据安全，请登录后再尝试"
-            showLoginRequired = true
             return false
         }
         return true
     }
 
     // MARK: - 检查是否需要登录才能导出 Word
+    // ⚠️ 不设 showLoginRequired，避免 ScanView 的 onChange 重复弹登录
+    // 调用方自己负责弹 sheet（showLoginSheet = true）
     func requireLoginForExport() -> Bool {
         guard !isLoggedIn else { return true }
-        loginRequiredReason = "导出文件需要登录，登录后数据永久保存"
-        showLoginRequired = true
         return false
     }
 
