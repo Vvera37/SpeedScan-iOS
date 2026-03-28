@@ -10,6 +10,7 @@ struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var showLogoutConfirm = false
+    @State private var showDeleteAccountConfirm = false
     @State private var showLoginSheet = false
     @State private var showSuccessToast = false
     @Environment(\.requestReview) private var requestReview
@@ -79,16 +80,25 @@ struct ProfileView: View {
                         }
                         .padding(.horizontal, 20)
 
-                        // MARK: 退出登录
+                        // MARK: 退出登录 + 删除账号
                         if appState.isLoggedIn {
-                            Button(action: { showLogoutConfirm = true }) {
-                                Text("退出登录")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.red)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color(UIColor.systemBackground))
-                                    .cornerRadius(14)
+                            VStack(spacing: 12) {
+                                Button(action: { showLogoutConfirm = true }) {
+                                    Text("退出登录")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.red)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                        .background(Color(UIColor.systemBackground))
+                                        .cornerRadius(14)
+                                }
+
+                                Button(action: { showDeleteAccountConfirm = true }) {
+                                    Text("删除账号")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                        .underline()
+                                }
                             }
                             .padding(.horizontal, 20)
                         }
@@ -139,6 +149,14 @@ struct ProfileView: View {
                 Button("取消", role: .cancel) {}
             } message: {
                 Text("退出后需要重新验证手机号")
+            }
+            .alert("删除账号", isPresented: $showDeleteAccountConfirm) {
+                Button("确认删除", role: .destructive) {
+                    Task { await appState.deleteAccount() }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("删除账号将清除所有本地数据，此操作不可恢复。确认删除？")
             }
             .alert("购买失败", isPresented: .init(
                 get: { subscriptionManager.purchaseError != nil },

@@ -271,9 +271,12 @@ struct LoginView: View {
     }
 
     // MARK: - 验证手机号
+    // 支持：中国手机号(11位) 或 纯数字6-11位（兼容审核员测试账号）
     private var isValidPhone: Bool {
-        let regex = "^1[3-9]\\d{9}$"
-        return phoneNumber.range(of: regex, options: .regularExpression) != nil
+        let cnRegex = "^1[3-9]\\d{9}$"
+        let generalRegex = "^\\d{6,11}$"
+        return phoneNumber.range(of: cnRegex, options: .regularExpression) != nil
+            || phoneNumber.range(of: generalRegex, options: .regularExpression) != nil
     }
 
     // MARK: - 主操作（发送码 or 登录）

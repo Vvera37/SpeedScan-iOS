@@ -114,6 +114,23 @@ class AppState: ObservableObject {
         isLoggedIn = false
     }
 
+    // MARK: - 删除账号（清除本地所有数据 + 登出）
+    func deleteAccount() async {
+        // 1. 通知后端删除账号（有后端时取消注释）
+        // if let token = currentToken {
+        //     try? await AuthService.deleteAccount(token: token)
+        // }
+        // 2. 清除本地所有数据
+        KeychainService.delete(key: tokenKey)
+        KeychainService.delete(key: phoneKey)
+        KeychainService.delete(key: expiryKey)
+        UserDefaults.standard.removeObject(forKey: scanCountKey)
+        userPhone = ""
+        guestScanCount = 0
+        isLoggedIn = false
+        isGuestMode = false
+    }
+
     // MARK: - 当前 Token（供接口调用使用）
     var currentToken: String? {
         KeychainService.load(key: tokenKey)
