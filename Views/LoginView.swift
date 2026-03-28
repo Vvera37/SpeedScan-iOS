@@ -342,9 +342,18 @@ struct LoginView: View {
                 )
                 // 登录成功 Toast
                 withAnimation { isShowingSuccessToast = true }
-                Task {
-                    try? await Task.sleep(nanoseconds: 1_800_000_000)
-                    await MainActor.run { withAnimation { isShowingSuccessToast = false } }
+                // sheet 模式：Toast 显示后收起页面
+                if isModal {
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_200_000_000)
+                        await MainActor.run { dismiss() }
+                    }
+                } else {
+                    // 根视图模式：isLoggedIn 已变 true，ContentView 自动切换，Toast 自然消失
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_800_000_000)
+                        await MainActor.run { withAnimation { isShowingSuccessToast = false } }
+                    }
                 }
             }
         } catch {
