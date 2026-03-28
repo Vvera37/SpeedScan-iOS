@@ -155,7 +155,10 @@ struct ScanView: View {
             }
             ScanActionCardWide(icon: "photo.stack.fill", title: "拍照转 PDF",
                                subtitle: "多张拍摄，一键合并为 PDF 文件",
-                               gradient: [Color(hex: "#5856D6"), Color(hex: "#3634A3")]) { showPPTCamera = true }
+                               gradient: [Color(hex: "#5856D6"), Color(hex: "#3634A3")]) {
+                guard appState.recordGuestPPT() else { showLoginSheet = true; return }
+                showPPTCamera = true
+            }
             ScanActionCardWide(icon: "doc.richtext.fill", title: "PDF 转 Word",
                                subtitle: "导入 PDF，一键转为可编辑 Word 文档",
                                gradient: [Color(hex: "#FF9500"), Color(hex: "#CC7700")]) { showDocumentPicker = true }
@@ -310,7 +313,7 @@ struct ScanView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard appState.recordGuestScan() else { showLoginSheet = true; return }
+            guard appState.recordGuestPDFWord() else { showLoginSheet = true; return }
             _ = url.startAccessingSecurityScopedResource()
             isConvertingPPT = true
             Task {

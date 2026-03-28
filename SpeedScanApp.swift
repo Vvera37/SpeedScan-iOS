@@ -34,13 +34,16 @@ class AppState: ObservableObject {
     @Published var showLoginRequired: Bool = false  // 触发登录弹窗
     @Published var loginRequiredReason: String = "" // 弹窗原因文案
 
-    static let guestScanLimit = 10             // 访客免登录最多扫描次数
+    static let guestScanLimit = 10             // 访客免登录最多扫描次数（OCR）
+    static let guestPDFLimit  = 1              // 拍照转PDF / PDF转Word 各体验1次
 
     // Keychain 键名
-    private let tokenKey     = "auth_token"
-    private let phoneKey     = "user_phone"
-    private let expiryKey    = "session_expiry"
-    private let scanCountKey = "guest_scan_count"
+    private let tokenKey        = "auth_token"
+    private let phoneKey        = "user_phone"
+    private let expiryKey       = "session_expiry"
+    private let scanCountKey    = "guest_scan_count"
+    private let pptCountKey     = "guest_ppt_count"     // 拍照转PDF
+    private let pdfWordCountKey = "guest_pdfword_count" // PDF转Word
 
     init() {
         guestScanCount = UserDefaults.standard.integer(forKey: scanCountKey)
@@ -65,12 +68,38 @@ class AppState: ObservableObject {
         return true
     }
 
-    // MARK: - 检查是否需要登录才能导出
+    // MARK: - 检查是否需要登录才能导出 Word
     func requireLoginForExport() -> Bool {
         guard !isLoggedIn else { return true }
         loginRequiredReason = "导出文件需要登录，登录后数据永久保存"
         showLoginRequired = true
         return false
+    }
+
+    // MARK: - 拍照转PDF：游客体验1次
+    func recordGuestPPT() -> Bool {
+        guard !isLoggedIn else { return true }
+        let count = UserDefaults.standard.integer(forKey: pptCountKey)
+        if count >= AppState.guestPDFLimit {
+            loginRequiredReason = "拍照转 PDF 需要登录后使用"
+            showLoginRequired = true
+            return false
+        }
+        UserDefaults.standard.set(count + 1, forKey: pptCountKey)
+        return true
+    }
+
+    // MARK: - PDF转Word：游客体验1次
+    func recordGuestPDFWord() -> Bool {
+        guard !isLoggedIn else { return true }
+        let count = UserDefaults.standard.integer(forKey: pdfWordCountKey)
+        if count >= AppState.guestPDFLimit {
+            loginRequiredReason = "PDF 转 Word 需要登录后使用"
+            showLoginRequired = true
+            return false
+        }
+        UserDefaults.standard.set(count + 1, forKey: pdfWordCountKey)
+        return true
     }
 
     // MARK: - 恢复登录态
@@ -125,6 +154,8 @@ class AppState: ObservableObject {
         KeychainService.delete(key: phoneKey)
         KeychainService.delete(key: expiryKey)
         UserDefaults.standard.removeObject(forKey: scanCountKey)
+        UserDefaults.standard.removeObject(forKey: pptCountKey)
+        UserDefaults.standard.removeObject(forKey: pdfWordCountKey)
         userPhone = ""
         guestScanCount = 0
         isLoggedIn = false
