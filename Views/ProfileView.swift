@@ -37,23 +37,22 @@ struct ProfileView: View {
                         .padding(.top, 16)
 
                         // MARK: 会员卡
-                        if subscriptionManager.isPremium {
-                            // 已是会员：展示状态 + 续费选项
+                        if !appState.isLoggedIn {
+                            // 未登录：产品特色介绍，不暴露价格
+                            GuestFeatureCard(onLoginTap: { showLoginSheet = true })
+                                .padding(.horizontal, 20)
+                        } else if subscriptionManager.isPremium {
+                            // 已登录 + 已是会员：展示状态 + 续费选项
                             PremiumStatusCard(
                                 subscriptionManager: subscriptionManager
                             )
-                            // id 跟随 planName 变化，强制视图重建（升级后立刻刷新）
                             .id(subscriptionManager.currentPlanName)
                             .padding(.horizontal, 20)
                         } else {
-                            // 未开通：展示购买卡片
+                            // 已登录 + 未开通：展示购买卡片
                             SubscriptionCard(
                                 subscriptionManager: subscriptionManager
-                            ) {
-                                if !appState.isLoggedIn {
-                                    showLoginSheet = true
-                                }
-                            }
+                            ) {}
                             .padding(.horizontal, 20)
                         }
 
@@ -699,6 +698,76 @@ extension String {
         let prefix = self.prefix(3)
         let suffix = self.suffix(4)
         return "\(prefix)****\(suffix)"
+    }
+}
+
+// MARK: - 未登录时产品特色介绍卡片
+struct GuestFeatureCard: View {
+    let onLoginTap: () -> Void
+
+    private let features: [(icon: String, color: Color, text: String)] = [
+        ("doc.viewfinder.fill", Color(hex: "#FF9500"), "智能 OCR 识别印刷体与手写体"),
+        ("doc.fill",            Color(hex: "#34C759"), "图片一键转 PDF"),
+        ("doc.richtext.fill",   Color(hex: "#007AFF"), "PDF 转 Word 精准还原排版"),
+        ("square.and.arrow.up.fill", Color(hex: "#AF52DE"), "无水印导出，专业呈现"),
+    ]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Image(systemName: "camera.viewfinder")
+                    .foregroundColor(Color(hex: "#007AFF"))
+                    .font(.system(size: 18))
+                Text("扫描鸡能帮你做什么")
+                    .font(.system(size: 16, weight: .bold))
+                Spacer()
+            }
+
+            VStack(spacing: 12) {
+                ForEach(features, id: \.text) { feature in
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(feature.color.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            Image(systemName: feature.icon)
+                                .font(.system(size: 15))
+                                .foregroundColor(feature.color)
+                        }
+                        Text(feature.text)
+                            .font(.system(size: 14))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                }
+            }
+
+            Divider()
+
+            Text("登录后解锁更多专业功能")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+
+            Button(action: onLoginTap) {
+                Text("立即登录")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(13)
+            }
+            .buttonStyle(ScaleButtonStyle())
+        }
+        .padding(20)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 5)
     }
 }
 
