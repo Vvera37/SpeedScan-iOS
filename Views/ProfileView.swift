@@ -63,11 +63,11 @@ struct ProfileView: View {
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "doc.text", iconColor: .blue, title: "隐私政策") {
-                                UIApplication.shared.open(URL(string: "https://saomiaoji.com/privacy")!)
+                                UIApplication.shared.open(URL(string: "https://vmingstudio.com/privacy.html")!)
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "text.book.closed", iconColor: .green, title: "用户协议") {
-                                UIApplication.shared.open(URL(string: "https://saomiaoji.com/terms")!)
+                                UIApplication.shared.open(URL(string: "https://vmingstudio.com/terms.html")!)
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "info.circle", iconColor: .gray, title: "版本号") {
@@ -511,7 +511,7 @@ struct SubscriptionCard: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     Button("《扫描鸡会员服务协议》") {
-                        if let url = URL(string: "https://vmingstudio.com/vip-terms") {
+                        if let url = URL(string: "https://vmingstudio.com/terms.html") {
                             UIApplication.shared.open(url)
                         }
                     }
