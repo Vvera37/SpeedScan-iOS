@@ -20,14 +20,19 @@ struct HistoryView: View {
     @State private var showQuickLook = false
     @State private var showUsageLimit = false
 
-    // 免费用户只展示最近 3 条，会员展示最近 20 条
-    static let freeLimit = 3
-    static let vipLimit  = 20
+    // 三档显示条数：游客5条 / 登录未付费15条 / 付费30条
+    static let guestLimit = 5
+    static let freeLimit  = 15
+    static let vipLimit   = 30
+
+    private var currentLimit: Int {
+        if subscriptionManager.isPremium { return Self.vipLimit }
+        if appState.isLoggedIn { return Self.freeLimit }
+        return Self.guestLimit
+    }
 
     private var displayedRecords: [ScanRecord] {
-        let isVip = subscriptionManager.isPremium
-        let limit = isVip ? Self.vipLimit : Self.freeLimit
-        return Array(records.prefix(limit))
+        Array(records.prefix(currentLimit))
     }
 
     private var isVip: Bool { subscriptionManager.isPremium }
@@ -37,8 +42,8 @@ struct HistoryView: View {
             ZStack {
                 Color(UIColor.systemBackground).ignoresSafeArea()
 
-                if !appState.isLoggedIn {
-                    // 未登录空态
+                if records.isEmpty && !appState.isLoggedIn {
+                    // 无记录且未登录
                     NotLoggedInEmptyState()
                 } else if records.isEmpty {
                     // 已登录但无记录
@@ -57,34 +62,13 @@ struct HistoryView: View {
                         }
                         .onDelete(perform: deleteRecords)
 
-                        // 非会员且有更多记录时展示解锁提示
-                        if !isVip && records.count > Self.freeLimit {
-                            VStack(spacing: 12) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(Color(hex: "#007AFF"))
-                                Text("还有 \(records.count - Self.freeLimit) 条记录")
-                                    .font(.system(size: 15, weight: .medium))
-                                Text("开通会员，最多查看最近 \(Self.vipLimit) 条导出记录")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.secondary)
-                                Button(action: { showUsageLimit = true }) {
-                                    Text("解锁 VIP")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 32)
-                                        .padding(.vertical, 12)
-                                        .background(
-                                            LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
-                                                           startPoint: .leading, endPoint: .trailing)
-                                        )
-                                        .cornerRadius(16)
-                                        .shadow(color: Color(hex: "#007AFF").opacity(0.35), radius: 8, x: 0, y: 4)
-                                }
-                                .buttonStyle(ScaleButtonStyle())
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
+                        // 未达上限时显示升级引导
+                        if !isVip && records.count > currentLimit {
+                            HistoryUpgradePrompt(
+                                hiddenCount: records.count - currentLimit,
+                                isLoggedIn: appState.isLoggedIn,
+                                onUpgrade: { showUsageLimit = true }
+                            )
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                         }
@@ -226,18 +210,63 @@ struct HistoryCardRow: View {
     }
 }
 
+// MARK: - 历史记录升级引导条
+struct HistoryUpgradePrompt: View {
+    let hiddenCount: Int
+    let isLoggedIn: Bool
+    let onUpgrade: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 28))
+                .foregroundColor(Color(hex: "#FF9500"))
+            Text("还有 \(hiddenCount) 条记录被隐藏")
+                .font(.system(size: 15, weight: .semibold))
+            if isLoggedIn {
+                Text("开通会员，查看最近 30 条导出记录")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("登录后可查看最近 15 条\n开通会员可查看最近 30 条")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button(action: onUpgrade) {
+                Text("开通会员")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(colors: [Color(hex: "#FF9500"), Color(hex: "#FF6B00")],
+                                       startPoint: .leading, endPoint: .trailing)
+                    )
+                    .cornerRadius(16)
+                    .shadow(color: Color(hex: "#FF9500").opacity(0.35), radius: 8, x: 0, y: 4)
+            }
+            .buttonStyle(ScaleButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+}
+
 // MARK: - 未登录空态
 struct NotLoggedInEmptyState: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "person.crop.circle.badge.exclamationmark")
+            Image(systemName: "doc.text.clock")
                 .font(.system(size: 64))
                 .foregroundColor(Color(hex: "#007AFF").opacity(0.6))
-            Text("登录后查看导出记录")
+            Text("导出记录保存在本设备")
                 .font(.system(size: 18, weight: .semibold))
-            Text("每次导出 Word 的记录将保存在本设备")
+            Text("游客可查看最近 5 条\n登录后可查看最近 15 条")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
         .padding(40)
     }

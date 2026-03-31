@@ -400,8 +400,43 @@ struct PremiumStatusCard: View {
                 Divider()
             }
 
+            // ── 当前会员权益 ──────────────────────────────────
+            VStack(alignment: .leading, spacing: 0) {
+                // 套餐名 + 有效期
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.orange)
+                    let label = subscriptionManager.currentPlanName.isEmpty ? "会员" : subscriptionManager.currentPlanName
+                    Text(label)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.orange)
+                    Spacer()
+                    if let expiry = subscriptionManager.expiryDate {
+                        Text("有效期至 \(expiry.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits)))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.bottom, 12)
+
+                // 权益列表
+                VStack(spacing: 8) {
+                    PremiumBenefitRow(icon: "doc.viewfinder.fill", text: "AI 识别无限次（印刷体+手写体）")
+                    PremiumBenefitRow(icon: "doc.fill",            text: "图片转 PDF 无限次")
+                    PremiumBenefitRow(icon: "doc.richtext.fill",   text: "PDF 转 Word 无限次")
+                    PremiumBenefitRow(icon: "square.and.arrow.up.fill", text: "导出文件无水印")
+                    PremiumBenefitRow(icon: "clock.fill",          text: "查看最近 30 条导出记录")
+                }
+            }
+            .padding(16)
+            .background(Color.orange.opacity(0.05))
+            .cornerRadius(12)
+
+            Divider()
+
             // ── 管理订阅 ──────────────────────────────────────
-            Text("您已开通自动续费，可在系统设置中管理")
+            Text("已开通自动续费，可随时取消")
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -431,6 +466,27 @@ struct PremiumStatusCard: View {
         .background(Color(UIColor.systemBackground))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+// MARK: - 会员权益行（PremiumStatusCard 专用）
+private struct PremiumBenefitRow: View {
+    let icon: String
+    let text: String
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(.orange)
+                .frame(width: 20)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundColor(.primary)
+            Spacer()
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.green)
+        }
     }
 }
 
