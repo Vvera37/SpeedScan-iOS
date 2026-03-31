@@ -107,12 +107,19 @@ class SubscriptionManager: ObservableObject {
                 isPremium = true
                 currentPlanName = transaction.productID == Self.yearlyProductID ? "年度会员" : "月度会员"
                 if let expiry = transaction.expirationDate {
-                    expiryDate = expiry  // 苹果返回的最新有效期，直接信任
+                    expiryDate = expiry
                 }
                 showPurchaseSuccess = true
 
-                // 延迟2秒后再跑一次完整校验（entitlements此时已写入）
-                // 确保升级场景下 currentPlanName / expiryDate 最终一致
+                // 后端验证（异步，不阻塞 UI）：写入 vip_users，支持跨设备查询
+                Task {
+                    await verifyWithBackend(
+                        transactionId: String(transaction.id),
+                        productId: transaction.productID
+                    )
+                }
+
+                // 延迟2秒后再跑一次完整校验
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                     Task { await self.checkSubscriptionStatus() }
                 }
@@ -131,6 +138,38 @@ class SubscriptionManager: ObservableObject {
         } catch {
             purchaseError = "购买失败：\(error.localizedDescription)"
             print("[SubscriptionManager] 购买错误: \(error)")
+        }
+    }
+
+    // MARK: - 后端验证（写入 vip_users，支持手机号跨设备同步）
+    func verifyWithBackend(transactionId: String, productId: String) async {
+        guard let url = URL(string: "https://vsrvioxdwtde.cloud.sealos.io/api/subscription/verify") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Device UUID（Keychain 存储，持久唯一）
+        if let uuid = KeychainService.load(key: "device_uuid") {
+            request.setValue(uuid, forHTTPHeaderField: "X-Device-UUID")
+        }
+
+        // 如果已登录，带上 token（后端会优先用手机号）
+        if let token = KeychainService.load(key: "auth_token"), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body = ["transactionId": transactionId, "productId": productId]
+        request.httpBody = try? JSONEncoder().encode(body)
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpResp = response as? HTTPURLResponse {
+                print("[SubscriptionManager] 后端验证结果: \(httpResp.statusCode)")
+            }
+        } catch {
+            // 静默失败：本地 StoreKit 已是主要验证来源，后端是增强同步
+            print("[SubscriptionManager] 后端验证请求失败: \(error.localizedDescription)")
         }
     }
 
