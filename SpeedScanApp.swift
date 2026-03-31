@@ -67,34 +67,32 @@ class AppState: ObservableObject {
         return true
     }
 
-    // MARK: - 检查是否需要登录才能导出 Word
-    // ⚠️ 不设 showLoginRequired，避免 ScanView 的 onChange 重复弹登录
-    // 调用方自己负责弹 sheet（showLoginSheet = true）
+    // MARK: - 检查导出权限（游客可导出，但无会员资格时调用方弹付费引导）
+    // 返回 true = 允许导出；false = 调用方弹 UsageLimitView
     func requireLoginForExport() -> Bool {
-        guard !isLoggedIn else { return true }
-        return false
+        // 已登录或已是会员（由调用方结合 subscriptionManager.isPremium 判断）
+        // 这里只做基础放行：不再强制要求登录
+        return true
     }
 
-    // MARK: - 拍照转PDF：游客体验1次
+    // MARK: - 拍照转PDF：游客体验1次（超限引导付费，不强制登录）
     func recordGuestPPT() -> Bool {
         guard !isLoggedIn else { return true }
         let count = UserDefaults.standard.integer(forKey: pptCountKey)
         if count >= AppState.guestPDFLimit {
-            loginRequiredReason = "拍照转 PDF 需要登录后使用"
-            showLoginRequired = true
+            // 超限：触发付费引导（不再设 showLoginRequired）
             return false
         }
         UserDefaults.standard.set(count + 1, forKey: pptCountKey)
         return true
     }
 
-    // MARK: - PDF转Word：游客体验1次
+    // MARK: - PDF转Word：游客体验1次（超限引导付费，不强制登录）
     func recordGuestPDFWord() -> Bool {
         guard !isLoggedIn else { return true }
         let count = UserDefaults.standard.integer(forKey: pdfWordCountKey)
         if count >= AppState.guestPDFLimit {
-            loginRequiredReason = "PDF 转 Word 需要登录后使用"
-            showLoginRequired = true
+            // 超限：触发付费引导（不再设 showLoginRequired）
             return false
         }
         UserDefaults.standard.set(count + 1, forKey: pdfWordCountKey)

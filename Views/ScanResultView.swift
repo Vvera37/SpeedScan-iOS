@@ -165,7 +165,7 @@ struct ScanResultView: View {
 
     // MARK: - 导出 Word
     private func exportWord() {
-        guard appState.requireLoginForExport() else { showLoginSheet = true; return }
+        // 无需登录检查：非会员可导出（有水印），会员无水印
         guard !isExporting else { return }
         isExporting = true
 

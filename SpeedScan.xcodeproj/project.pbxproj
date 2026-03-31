@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9D9CE2294620EA2220A8D34C /* UsageLimitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B94AA83DBB16203018BC10 /* UsageLimitView.swift */; };
 		A1000001 /* SpeedScanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001 /* SpeedScanApp.swift */; };
 		A1000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002 /* ContentView.swift */; };
 		A1000003 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003 /* ScanView.swift */; };
@@ -22,22 +23,22 @@
 		A1000013 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000013 /* KeychainService.swift */; };
 		A1000014 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000014 /* SubscriptionManager.swift */; };
 		A1000015 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000015 /* ImagePicker.swift */; };
-		BFA6103A2F721D3E000C465E /* EditableTextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6103B2F721D3E000C465E /* EditableTextCard.swift */; };
 		A1000016 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000016 /* CameraView.swift */; };
 		A1000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000017 /* Assets.xcassets */; };
 		A1000018 /* test-ocr-image.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000019 /* test-ocr-image.jpg */; };
 		A1000019 /* test-ocr-pdf.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B1000020 /* test-ocr-pdf.pdf */; };
-
+		BAC667E9362C765BBBC96396 /* UsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854C540F2032EF64D54B5B7A /* UsageService.swift */; };
 		BFA6101D2F721C57000C465E /* test-ocr-image2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B1000021 /* test-ocr-image2.jpg */; };
 		BFA6101F2F721D3E000C465E /* ConvertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6101E2F721D3E000C465E /* ConvertService.swift */; };
 		BFA6102A2F721D3E000C465E /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6102B2F721D3E000C465E /* OCRService.swift */; };
 		BFA6102C2F721D3E000C465E /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6102D2F721D3E000C465E /* OCRResultView.swift */; };
+		BFA6103A2F721D3E000C465E /* EditableTextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA6103B2F721D3E000C465E /* EditableTextCard.swift */; };
 		BFE5005E2F63AB2A003548BD /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = BFE5005D2F63AB2A003548BD /* ZIPFoundation */; };
-		BAC667E9362C765BBBC96396 /* UsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854C540F2032EF64D54B5B7A /* UsageService.swift */; };
-		9D9CE2294620EA2220A8D34C /* UsageLimitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B94AA83DBB16203018BC10 /* UsageLimitView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		854C540F2032EF64D54B5B7A /* UsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageService.swift; sourceTree = "<group>"; };
+		A7B94AA83DBB16203018BC10 /* UsageLimitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageLimitView.swift; sourceTree = "<group>"; };
 		B1000001 /* SpeedScanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedScanApp.swift; sourceTree = "<group>"; };
 		B1000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B1000003 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
@@ -53,7 +54,6 @@
 		B1000013 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		B1000014 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		B1000015 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
-		BFA6103B2F721D3E000C465E /* EditableTextCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableTextCard.swift; sourceTree = "<group>"; };
 		B1000016 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		B1000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -64,8 +64,8 @@
 		BFA6101E2F721D3E000C465E /* ConvertService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertService.swift; sourceTree = "<group>"; };
 		BFA6102B2F721D3E000C465E /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		BFA6102D2F721D3E000C465E /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
-		854C540F2032EF64D54B5B7A /* UsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageService.swift; sourceTree = "<group>"; };
-		A7B94AA83DBB16203018BC10 /* UsageLimitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageLimitView.swift; sourceTree = "<group>"; };
+		BFA6103B2F721D3E000C465E /* EditableTextCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableTextCard.swift; sourceTree = "<group>"; };
+		BFCD2B462F7A80DD00AE97F0 /* SpeedScanRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SpeedScanRelease.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +91,7 @@
 		C1000001 /* SpeedScan */ = {
 			isa = PBXGroup;
 			children = (
+				BFCD2B462F7A80DD00AE97F0 /* SpeedScanRelease.entitlements */,
 				B1000001 /* SpeedScanApp.swift */,
 				B1000018 /* Info.plist */,
 				C1000002 /* Views */,
@@ -273,7 +274,6 @@
 				A1000010 /* ScanRecord.swift in Sources */,
 				A1000011 /* AuthService.swift in Sources */,
 				A1000012 /* DocxExporter.swift in Sources */,
-
 				A1000013 /* KeychainService.swift in Sources */,
 				A1000014 /* SubscriptionManager.swift in Sources */,
 				A1000015 /* ImagePicker.swift in Sources */,
@@ -396,6 +396,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "扫描鸡";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.saomiaoji.app;
@@ -412,11 +413,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = SpeedScanRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "扫描鸡";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.saomiaoji.app;

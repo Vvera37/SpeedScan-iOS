@@ -36,20 +36,18 @@ struct ProfileView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                        // MARK: 会员卡
-                        if !appState.isLoggedIn {
-                            // 未登录：产品特色介绍，不暴露价格
-                            GuestFeatureCard(onLoginTap: { showLoginSheet = true })
-                                .padding(.horizontal, 20)
-                        } else if subscriptionManager.isPremium {
-                            // 已登录 + 已是会员：展示状态 + 续费选项
+                        // MARK: 会员卡（不依赖登录状态，游客也能购买）
+                        if subscriptionManager.isPremium {
+                            // 已是会员（无论登录与否）：展示状态 + 续费选项
                             PremiumStatusCard(
-                                subscriptionManager: subscriptionManager
+                                subscriptionManager: subscriptionManager,
+                                isLoggedIn: appState.isLoggedIn,
+                                onBindPhone: { showLoginSheet = true }
                             )
                             .id(subscriptionManager.currentPlanName)
                             .padding(.horizontal, 20)
                         } else {
-                            // 已登录 + 未开通：展示购买卡片
+                            // 未开通：展示购买卡片（游客可直接购买，iCloud绑定）
                             SubscriptionCard(
                                 subscriptionManager: subscriptionManager
                             ) {}
@@ -217,11 +215,26 @@ struct UserInfoCard: View {
 
                     VStack(alignment: .leading, spacing: 5) {
                         if !isLoggedIn {
-                            Text("未登录")
-                                .font(.system(size: 18, weight: .semibold))
-                            Text("点击登录，保障数据安全")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                            // 未登录：分两种情况
+                            if isPremium {
+                                // 游客会员：iCloud 已购买，未绑手机号
+                                Text("游客")
+                                    .font(.system(size: 18, weight: .semibold))
+                                HStack(spacing: 4) {
+                                    Image(systemName: "crown.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                    Text("游客会员 · 绑定手机号可跨设备使用")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                }
+                            } else {
+                                Text("未登录")
+                                    .font(.system(size: 18, weight: .semibold))
+                                Text("绑定手机号，换设备权益不丢失")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                            }
                         } else {
                             Text(phone.maskedPhone)
                                 .font(.system(size: 18, weight: .semibold))
@@ -311,6 +324,8 @@ private struct VIPBadgeItem: View {
 // MARK: - 已开通会员卡（管理订阅 / 升级）
 struct PremiumStatusCard: View {
     @ObservedObject var subscriptionManager: SubscriptionManager
+    var isLoggedIn: Bool = true
+    var onBindPhone: (() -> Void)? = nil
 
     // 当前是否月度会员（可升级）
     private var isMonthly: Bool {
@@ -319,6 +334,35 @@ struct PremiumStatusCard: View {
 
     var body: some View {
         VStack(spacing: 14) {
+
+            // ── 游客会员：绑定手机号引导 ──────────────────────
+            if !isLoggedIn {
+                Button(action: { onBindPhone?() }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "iphone.and.arrow.forward")
+                            .foregroundColor(Color(hex: "#007AFF"))
+                            .font(.system(size: 16))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("绑定手机号，权益跨设备同步")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.primary)
+                            Text("换手机后会员权益不丢失，扫描记录随身带")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
+                    .padding(14)
+                    .background(Color(hex: "#007AFF").opacity(0.07))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+            }
 
             // ── 月度会员：展示升级年度入口 ────────────────────
             if isMonthly, let yearlyProduct = subscriptionManager.yearlyProduct {

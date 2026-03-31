@@ -65,7 +65,11 @@ struct ScanView: View {
             ScanPHPickerView(
                 onSelected: { image in
                     showPHPicker = false
-                    guard appState.recordGuestScan() else { showLoginSheet = true; return }
+                    guard appState.recordGuestScan() else {
+                        usageLimitFeature = .ocr
+                        showUsageLimit = true
+                        return
+                    }
                     startOCR(image: image)
                 },
                 isPresented: $showPHPicker
@@ -122,9 +126,7 @@ struct ScanView: View {
             }
         }
         // showResult 由 startOCR 手动触发（延迟0.1s避免cover冲突），不再用 onChange 自动触发
-        .onChange(of: appState.showLoginRequired) { _, show in
-            if show { showLoginSheet = true; appState.showLoginRequired = false }
-        }
+        // showLoginRequired 已弃用（付费引导不强制登录），保留兼容性
         .alert("识别失败", isPresented: .init(get: { ocrError != nil }, set: { if !$0 { ocrError = nil } })) {
             Button("好", role: .cancel) { ocrError = nil }
         } message: { Text(ocrError ?? "") }
@@ -156,7 +158,11 @@ struct ScanView: View {
             ScanActionCardWide(icon: "photo.stack.fill", title: "拍照转 PDF",
                                subtitle: "多张拍摄，一键合并为 PDF 文件",
                                gradient: [Color(hex: "#5856D6"), Color(hex: "#3634A3")]) {
-                guard appState.recordGuestPPT() else { showLoginSheet = true; return }
+                guard appState.recordGuestPPT() else {
+                    usageLimitFeature = .imagesPdf
+                    showUsageLimit = true
+                    return
+                }
                 showPPTCamera = true
             }
             ScanActionCardWide(icon: "doc.richtext.fill", title: "PDF 转 Word",
@@ -313,7 +319,11 @@ struct ScanView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard appState.recordGuestPDFWord() else { showLoginSheet = true; return }
+            guard appState.recordGuestPDFWord() else {
+                usageLimitFeature = .pdfWord
+                showUsageLimit = true
+                return
+            }
             _ = url.startAccessingSecurityScopedResource()
             isConvertingPPT = true
             Task {
