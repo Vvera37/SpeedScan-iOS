@@ -14,6 +14,7 @@ struct ProfileView: View {
     @State private var showLoginSheet = false
     @State private var showSuccessToast = false
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -61,11 +62,11 @@ struct ProfileView: View {
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "doc.text", iconColor: .blue, title: "隐私政策") {
-                                UIApplication.shared.open(URL(string: "https://vmingstudio.com/privacy.html")!)
+                                openURL(URL(string: "https://vmingstudio.com/privacy.html")!)
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "text.book.closed", iconColor: .green, title: "用户协议") {
-                                UIApplication.shared.open(URL(string: "https://vmingstudio.com/terms.html")!)
+                                openURL(URL(string: "https://vmingstudio.com/terms.html")!)
                             }
                             Divider().padding(.leading, 52)
                             MenuRow(icon: "info.circle", iconColor: .gray, title: "版本号") {
