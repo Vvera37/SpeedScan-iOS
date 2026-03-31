@@ -17,6 +17,7 @@ struct UsageLimitView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @State private var isPurchasing = false
     @State private var purchaseError: String?
+    @State private var selectedProductId: String = SubscriptionManager.yearlyProductID
 
     var body: some View {
         ZStack {
@@ -78,13 +79,50 @@ struct UsageLimitView: View {
                             ForEach(subscriptionManager.products, id: \.id) { product in
                                 LimitSubscriptionCard(
                                     product: product,
+                                    isSelected: selectedProductId == product.id,
                                     isPurchasing: isPurchasing,
-                                    onTap: { purchase(product: product) }
+                                    onTap: { selectedProductId = product.id }
                                 )
                             }
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
+
+                        // ── 购买按钮 ──────────────────────────────
+                        Button(action: {
+                            if let product = subscriptionManager.products.first(where: { $0.id == selectedProductId })
+                                ?? subscriptionManager.products.first {
+                                purchase(product: product)
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                if isPurchasing {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .black.opacity(0.7)))
+                                        .scaleEffect(0.85)
+                                } else {
+                                    Image(systemName: "crown.fill")
+                                        .font(.system(size: 14))
+                                }
+                                let product = subscriptionManager.products.first(where: { $0.id == selectedProductId })
+                                    ?? subscriptionManager.products.first
+                                Text(isPurchasing ? "处理中…" : "确认协议并支付 \(product?.displayPrice ?? "")")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.black.opacity(0.75))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "#FFD60A"), Color(hex: "#FF9500")],
+                                    startPoint: .leading, endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(13)
+                        }
+                        .disabled(isPurchasing)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 4)
                     }
 
                     // ── 错误提示 ──────────────────────────────────
@@ -103,15 +141,41 @@ struct UsageLimitView: View {
                     }
                     .font(.footnote)
                     .foregroundColor(Color(UIColor.secondaryLabel))
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 12)
 
-                    // ── 条款说明 ──────────────────────────────────
-                    Text("订阅将从 Apple ID 账户扣款。可随时在「设置 > Apple ID > 订阅」取消。")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(UIColor.tertiaryLabel))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 40)
+                    // ── 会员协议区域 ──────────────────────────────
+                    VStack(spacing: 6) {
+                        Text("订阅将从 Apple ID 账户扣款。可随时在「设置 > Apple ID > 订阅」取消续订。")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(UIColor.tertiaryLabel))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+
+                        // EULA + 隐私政策链接
+                        HStack(spacing: 4) {
+                            Text("购买即代表您同意")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(UIColor.tertiaryLabel))
+                            Button("Terms of Use (EULA)") {
+                                UIApplication.shared.open(
+                                    URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+                                )
+                            }
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#007AFF"))
+                            Text("和")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(UIColor.tertiaryLabel))
+                            Button("Privacy Policy") {
+                                UIApplication.shared.open(
+                                    URL(string: "https://vmingstudio.com/privacy.html")!
+                                )
+                            }
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#007AFF"))
+                        }
+                    }
+                    .padding(.bottom, 40)
                 }
             }
 
@@ -167,6 +231,7 @@ private struct LimitBenefitRow: View {
 // MARK: - 订阅选择卡片（UsageLimitView 专用）
 private struct LimitSubscriptionCard: View {
     let product: Product
+    let isSelected: Bool
     let isPurchasing: Bool
     let onTap: () -> Void
 
@@ -179,6 +244,7 @@ private struct LimitSubscriptionCard: View {
                     HStack(spacing: 8) {
                         Text(isYearly ? "年度会员" : "月度会员")
                             .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .primary)
                         if isYearly {
                             Text("推荐")
                                 .font(.system(size: 11, weight: .bold))
@@ -196,18 +262,19 @@ private struct LimitSubscriptionCard: View {
                 Spacer()
                 Text(product.displayPrice)
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(isYearly ? .orange : .primary)
+                    .foregroundColor(isSelected ? Color(hex: "#FF6B00") : .primary)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(UIColor.secondarySystemBackground))
+                    .fill(isSelected ? Color(hex: "#FFF8E7") : Color(UIColor.secondarySystemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(isYearly ? Color.orange : Color.clear, lineWidth: 2)
+                            .stroke(isSelected ? Color(hex: "#FFB800") : Color.clear, lineWidth: 2)
                     )
             )
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
         }
         .disabled(isPurchasing)
         .buttonStyle(.plain)
