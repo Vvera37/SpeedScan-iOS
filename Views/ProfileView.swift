@@ -225,7 +225,7 @@ struct UserInfoCard: View {
                                     Image(systemName: "crown.fill")
                                         .font(.system(size: 12))
                                         .foregroundColor(.orange)
-                                    Text("游客会员 · 绑定手机号可跨设备使用")
+                                    Text("游客会员")
                                         .font(.system(size: 12))
                                         .foregroundColor(.orange)
                                 }
@@ -611,8 +611,18 @@ struct SubscriptionCard: View {
                     Text("购买前请阅读")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    Button("《扫描鸡会员服务协议》") {
+                    Button("《会员服务协议》") {
                         if let url = URL(string: "https://vmingstudio.com/terms.html") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "#007AFF"))
+                    Text("和")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Button("Terms of Use (EULA)") {
+                        if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
                             UIApplication.shared.open(url)
                         }
                     }
@@ -644,7 +654,7 @@ struct PriceCard: View {
 
     // 选中：金色/橙色边框 + 背景略加深；未选中：灰色背景无边框
     private var selectedBorderColor: Color { Color(hex: "#FFB800") }
-    private var selectedBgColor: Color { Color(hex: "#FFF8E7") }   // 暖黄底，略深于白
+    private var selectedBgColor: Color { Color(hex: "#FF6B00").opacity(0.12) }
     private var unselectedBgColor: Color { Color(hex: "#F5F5F5") } // 浅灰，无边框
 
     var body: some View {

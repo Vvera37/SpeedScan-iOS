@@ -145,20 +145,20 @@ struct UsageLimitView: View {
 
                     // ── 会员协议区域 ──────────────────────────────
                     VStack(spacing: 6) {
-                        Text("订阅将从 Apple ID 账户扣款。可随时在「设置 > Apple ID > 订阅」取消续订。")
+                        Text("订阅将从 Apple ID 账户扣款，到期前 24 小时自动续费，可随时在「设置 > Apple ID > 订阅」取消。")
                             .font(.system(size: 11))
                             .foregroundColor(Color(UIColor.tertiaryLabel))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
 
-                        // EULA + 隐私政策链接
+                        // EULA + 会员协议链接
                         HStack(spacing: 4) {
                             Text("购买即代表您同意")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(UIColor.tertiaryLabel))
-                            Button("Terms of Use (EULA)") {
+                            Button("《会员服务协议》") {
                                 UIApplication.shared.open(
-                                    URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+                                    URL(string: "https://vmingstudio.com/terms.html")!
                                 )
                             }
                             .font(.system(size: 11))
@@ -166,9 +166,9 @@ struct UsageLimitView: View {
                             Text("和")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(UIColor.tertiaryLabel))
-                            Button("Privacy Policy") {
+                            Button("Terms of Use (EULA)") {
                                 UIApplication.shared.open(
-                                    URL(string: "https://vmingstudio.com/privacy.html")!
+                                    URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
                                 )
                             }
                             .font(.system(size: 11))
@@ -268,10 +268,12 @@ private struct LimitSubscriptionCard: View {
             .padding(.vertical, 18)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? Color(hex: "#FFF8E7") : Color(UIColor.secondarySystemBackground))
+                    .fill(isSelected
+                        ? Color(hex: "#FF6B00").opacity(0.15)
+                        : Color(UIColor.tertiarySystemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSelected ? Color(hex: "#FFB800") : Color.clear, lineWidth: 2)
+                            .stroke(isSelected ? Color(hex: "#FFB800") : Color(UIColor.separator), lineWidth: isSelected ? 2 : 0.5)
                     )
             )
             .animation(.easeInOut(duration: 0.15), value: isSelected)

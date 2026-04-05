@@ -197,6 +197,7 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 28)
 
+
                     // MARK: 跳过（非 modal 模式保留）
                     if !isModal {
                         Button(action: {
@@ -211,10 +212,8 @@ struct LoginView: View {
                         .padding(.top, 16)
                     }
 
-                    // MARK: 隐私条款（需手动勾选）
-                    // 整行可点击（checkbox + 文字全部触发勾选）
-                    HStack(alignment: .center, spacing: 8) {
-                        // Checkbox
+                    HStack(alignment: .top, spacing: 8) {
+                        // Checkbox — 单独点击切换
                         ZStack {
                             RoundedRectangle(cornerRadius: 5)
                                 .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
@@ -228,22 +227,11 @@ struct LoginView: View {
                                     .foregroundColor(.white)
                             }
                         }
+                        .onTapGesture { agreedToTerms.toggle() }
 
-                        Group {
-                            Text("我已阅读并同意 ")
-                                .foregroundColor(.secondary)
-                            + Text("《用户协议》")
-                                .foregroundColor(Color(hex: "#007AFF"))
-                            + Text(" 和 ")
-                                .foregroundColor(.secondary)
-                            + Text("《隐私政策》")
-                                .foregroundColor(Color(hex: "#007AFF"))
-                        }
-                        .font(.system(size: 12))
-                        .multilineTextAlignment(.leading)
+                        // 文字区域：普通文字 + 可点击链接
+                        FlowTermsText(agreedToTerms: $agreedToTerms)
                     }
-                    .contentShape(Rectangle()) // 整行都是可点击区域
-                    .onTapGesture { agreedToTerms.toggle() }
                     .padding(.top, 12)
                     .padding(.bottom, 40)
                 }
@@ -257,14 +245,19 @@ struct LoginView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showCodeInput)
         // 右上角关闭按钮：用 overlay 替代 toolbar，真机点击更可靠
         .overlay(alignment: .topTrailing) {
-            if isModal {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(Color(.systemGray3))
-                        .padding(16)
-                        .contentShape(Rectangle())  // 扩大点击区域到 60×60
+            Button(action: {
+                if isModal {
+                    dismiss()
+                } else {
+                    appState.enterGuestMode()
                 }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 28))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(Color(.label).opacity(0.6), Color(.systemFill))
+                    .padding(16)
+                    .contentShape(Rectangle())
             }
         }
         } // NavigationStack
@@ -384,6 +377,42 @@ func hideKeyboard() {
         #selector(UIResponder.resignFirstResponder),
         to: nil, from: nil, for: nil
     )
+}
+
+// MARK: - 条款文字区域（支持链接单独点击）
+private struct FlowTermsText: View {
+    @Binding var agreedToTerms: Bool
+
+    var body: some View {
+        // SwiftUI 无法在 Text 拼接中嵌入可点击链接，改用 HStack wrapping 方案
+        // 用多行自然换行的 ViewThatFits 方案
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 0) {
+                Text("我已阅读并同意 ")
+                    .foregroundColor(.secondary)
+                Button("《用户协议》") {
+                    UIApplication.shared.open(URL(string: "https://vmingstudio.com/terms.html")!)
+                }
+                .foregroundColor(Color(hex: "#007AFF"))
+                Text(" 和 ")
+                    .foregroundColor(.secondary)
+                Button("《隐私政策》") {
+                    UIApplication.shared.open(URL(string: "https://vmingstudio.com/privacy.html")!)
+                }
+                .foregroundColor(Color(hex: "#007AFF"))
+            }
+            HStack(spacing: 0) {
+                Text("及苹果 ")
+                    .foregroundColor(.secondary)
+                Button("Terms of Use (EULA)") {
+                    UIApplication.shared.open(URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                }
+                .foregroundColor(Color(hex: "#007AFF"))
+            }
+        }
+        .font(.system(size: 12))
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Preview
