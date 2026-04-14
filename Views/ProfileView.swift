@@ -630,6 +630,14 @@ struct SubscriptionCard: View {
                     .foregroundColor(Color(hex: "#007AFF"))
                 }
             }
+
+            // ── 恢复购买 ─────────────────────────────────────
+            Button("恢复购买") {
+                Task { await subscriptionManager.restorePurchases() }
+            }
+            .font(.footnote)
+            .foregroundColor(.secondary)
+            .padding(.top, 4)
         }
         .padding(20)
         .background(Color(UIColor.systemBackground))
