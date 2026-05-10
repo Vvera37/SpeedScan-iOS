@@ -54,6 +54,7 @@ struct MainTabView: View {
 // MARK: - Notification 扩展
 extension Notification.Name {
     static let switchToScanTab = Notification.Name("switchToScanTab")
+    static let didLogin = Notification.Name("didLogin")
 }
 
 // MARK: - Preview

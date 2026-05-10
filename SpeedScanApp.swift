@@ -126,6 +126,8 @@ class AppState: ObservableObject {
         if isPermanentVip {
             UserDefaults.standard.set(true, forKey: "is_permanent_vip")
         }
+        // 通知 SubscriptionManager 重新检查永久会员状态
+        NotificationCenter.default.post(name: .didLogin, object: nil)
     }
 
     // MARK: - 续期（延长 90 天）
