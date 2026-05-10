@@ -116,13 +116,16 @@ class AppState: ObservableObject {
     }
 
     // MARK: - 登录成功后保存
-    func saveSession(token: String, phone: String, expiresAt: Date?) {
+    func saveSession(token: String, phone: String, expiresAt: Date?, isPermanentVip: Bool = false) {
         let expiry = expiresAt ?? Calendar.current.date(byAdding: .day, value: 90, to: Date())!
         KeychainService.save(key: tokenKey, value: token)
         KeychainService.save(key: phoneKey, value: phone)
         KeychainService.save(key: expiryKey, value: ISO8601DateFormatter().string(from: expiry))
         userPhone = phone
         isLoggedIn = true
+        if isPermanentVip {
+            UserDefaults.standard.set(true, forKey: "is_permanent_vip")
+        }
     }
 
     // MARK: - 续期（延长 90 天）

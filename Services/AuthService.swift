@@ -114,10 +114,12 @@ struct AuthService {
 struct LoginResponse: Codable {
     let token: String
     let expiresAt: String
+    let isPermanentVip: Bool?
 
     enum CodingKeys: String, CodingKey {
         case token
         case expiresAt = "expires_at"
+        case isPermanentVip = "is_permanent_vip"
     }
 
     var expiryDate: Date? {

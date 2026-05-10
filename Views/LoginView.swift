@@ -50,7 +50,7 @@ struct LoginView: View {
                     Spacer()
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Color(hex: "#34C759"))
+                            .foregroundColor(Color(hex: "#3A7D44"))
                         Text("登录成功")
                             .font(.system(size: 14, weight: .medium))
                     }
@@ -79,11 +79,11 @@ struct LoginView: View {
                     VStack(spacing: 16) {
                         ZStack {
                             Circle()
-                                .fill(Color(hex: "#007AFF").opacity(0.12))
+                                .fill(Color(hex: "#DDBE89").opacity(0.12))
                                 .frame(width: 120, height: 120)
                             Image(systemName: "camera.viewfinder")
                                 .font(.system(size: 56, weight: .medium))
-                                .foregroundColor(Color(hex: "#007AFF"))
+                                .foregroundColor(Color(hex: "#DDBE89"))
                         }
                         .padding(.top, 80)
 
@@ -108,10 +108,10 @@ struct LoginView: View {
                                 // +86 前缀
                                 Text("+86")
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(Color(hex: "#007AFF"))
+                                    .foregroundColor(Color(hex: "#DDBE89"))
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 14)
-                                    .background(Color(hex: "#007AFF").opacity(0.08))
+                                    .background(Color(hex: "#DDBE89").opacity(0.08))
                                     .cornerRadius(10)
 
                                 TextField("请输入手机号", text: $phoneNumber)
@@ -145,7 +145,7 @@ struct LoginView: View {
                                     Button(action: { Task { await sendCode() } }) {
                                         Text(countdown > 0 ? "\(countdown)s 后重发" : "重新发送")
                                             .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(countdown > 0 ? .secondary : Color(hex: "#007AFF"))
+                                            .foregroundColor(countdown > 0 ? .secondary : Color(hex: "#DDBE89"))
                                     }
                                     .disabled(countdown > 0 || isLoading)
                                 }
@@ -178,7 +178,7 @@ struct LoginView: View {
                             .background(
                                 isValidPhone
                                     ? LinearGradient(
-                                        colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                        colors: [Color(hex: "#DDBE89"), Color(hex: "#B89A60")],
                                         startPoint: .leading, endPoint: .trailing
                                       )
                                     : LinearGradient(
@@ -188,7 +188,7 @@ struct LoginView: View {
                             )
                             .cornerRadius(14)
                             .shadow(
-                                color: isValidPhone ? Color(hex: "#007AFF").opacity(0.35) : .clear,
+                                color: isValidPhone ? Color(hex: "#DDBE89").opacity(0.35) : .clear,
                                 radius: 10, x: 0, y: 5
                             )
                         }
@@ -216,11 +216,11 @@ struct LoginView: View {
                         // Checkbox — 单独点击切换
                         ZStack {
                             RoundedRectangle(cornerRadius: 5)
-                                .stroke(agreedToTerms ? Color(hex: "#007AFF") : Color.gray.opacity(0.5), lineWidth: 1.5)
+                                .stroke(agreedToTerms ? Color(hex: "#DDBE89") : Color.gray.opacity(0.5), lineWidth: 1.5)
                                 .frame(width: 22, height: 22)
                             if agreedToTerms {
                                 RoundedRectangle(cornerRadius: 5)
-                                    .fill(Color(hex: "#007AFF"))
+                                    .fill(Color(hex: "#DDBE89"))
                                     .frame(width: 22, height: 22)
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12, weight: .bold))
@@ -331,7 +331,8 @@ struct LoginView: View {
                 appState.saveSession(
                     token: response.token,
                     phone: phoneNumber,
-                    expiresAt: response.expiryDate
+                    expiresAt: response.expiryDate,
+                    isPermanentVip: response.isPermanentVip == true
                 )
                 // 登录成功 Toast
                 withAnimation { isShowingSuccessToast = true }
@@ -393,13 +394,13 @@ private struct FlowTermsText: View {
                 Button("《用户协议》") {
                     UIApplication.shared.open(URL(string: "https://vmingstudio.com/terms.html")!)
                 }
-                .foregroundColor(Color(hex: "#007AFF"))
+                .foregroundColor(Color(hex: "#DDBE89"))
                 Text(" 和 ")
                     .foregroundColor(.secondary)
                 Button("《隐私政策》") {
                     UIApplication.shared.open(URL(string: "https://vmingstudio.com/privacy.html")!)
                 }
-                .foregroundColor(Color(hex: "#007AFF"))
+                .foregroundColor(Color(hex: "#DDBE89"))
             }
             HStack(spacing: 0) {
                 Text("及苹果 ")
@@ -407,7 +408,7 @@ private struct FlowTermsText: View {
                 Button("Terms of Use (EULA)") {
                     UIApplication.shared.open(URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                 }
-                .foregroundColor(Color(hex: "#007AFF"))
+                .foregroundColor(Color(hex: "#DDBE89"))
             }
         }
         .font(.system(size: 12))

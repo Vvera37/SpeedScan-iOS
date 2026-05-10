@@ -19,6 +19,7 @@ class SubscriptionManager: ObservableObject {
     static let monthlyProductID = "com.saomiaoji.app.monthly"   // ¥2/月
     static let yearlyProductID  = "com.saomiaoji.app.yearly"    // ¥12/年
 
+
     // MARK: - Published 状态
     @Published var isPremium: Bool = false
     @Published var expiryDate: Date? = nil       // 当前会员最新有效期
@@ -30,7 +31,24 @@ class SubscriptionManager: ObservableObject {
 
     private var updatesTask: Task<Void, Never>?
 
+    // MARK: - 本地永久会员白名单（兜底，无需发版可改数据库）
+    private static let permanentVIPPhones: Set<String> = [
+        "18565333976",
+        "18221177805"
+    ]
+
     init() {
+        // 永久会员：从 UserDefaults 立即恢复（不等网络）
+        if UserDefaults.standard.bool(forKey: "is_permanent_vip") {
+            isPremium = true
+            currentPlanName = "永久会员"
+        }
+        // 本地白名单兜底（服务器未部署时也能用）
+        let phone = KeychainService.load(key: "user_phone") ?? ""
+        if Self.permanentVIPPhones.contains(phone) {
+            isPremium = true
+            currentPlanName = "永久会员"
+        }
         // 启动时检查订阅状态
         Task {
             await loadProducts()
@@ -84,6 +102,20 @@ class SubscriptionManager: ObservableObject {
         expiryDate = latestExpiry
         currentPlanName = latestPlanName
         if latestExpiry == nil { isPremium = false }
+
+        // 永久会员标记覆盖 StoreKit 结果
+        if UserDefaults.standard.bool(forKey: "is_permanent_vip") {
+            isPremium = true
+            currentPlanName = "永久会员"
+            expiryDate = nil
+        }
+        // 本地白名单兜底
+        let phone = KeychainService.load(key: "user_phone") ?? ""
+        if Self.permanentVIPPhones.contains(phone) {
+            isPremium = true
+            currentPlanName = "永久会员"
+            expiryDate = nil
+        }
     }
 
     // MARK: - 购买订阅
