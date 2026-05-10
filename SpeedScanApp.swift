@@ -141,8 +141,11 @@ class AppState: ObservableObject {
         KeychainService.delete(key: tokenKey)
         KeychainService.delete(key: phoneKey)
         KeychainService.delete(key: expiryKey)
+        UserDefaults.standard.removeObject(forKey: "is_permanent_vip")
         userPhone = ""
         isLoggedIn = false
+        // 通知 SubscriptionManager 重新检查（退出后永久会员失效）
+        NotificationCenter.default.post(name: .didLogout, object: nil)
     }
 
     // MARK: - 删除账号（清除本地所有数据 + 登出）
@@ -158,6 +161,7 @@ class AppState: ObservableObject {
         UserDefaults.standard.removeObject(forKey: scanCountKey)
         UserDefaults.standard.removeObject(forKey: pptCountKey)
         UserDefaults.standard.removeObject(forKey: pdfWordCountKey)
+        UserDefaults.standard.removeObject(forKey: "is_permanent_vip")
         userPhone = ""
         guestScanCount = 0
         isLoggedIn = false

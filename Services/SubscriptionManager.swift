@@ -60,6 +60,11 @@ class SubscriptionManager: ObservableObject {
         NotificationCenter.default.addObserver(forName: .didLogin, object: nil, queue: .main) { [weak self] _ in
             self?.recheckPermanentVIP()
         }
+        // 监听退出登录，清掉永久会员状态，保留 StoreKit 订阅
+        NotificationCenter.default.addObserver(forName: .didLogout, object: nil, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            Task { await self.checkSubscriptionStatus() }
+        }
     }
 
     deinit {
@@ -125,6 +130,7 @@ class SubscriptionManager: ObservableObject {
     // MARK: - 登录后重新检查永久会员状态
     func recheckPermanentVIP() {
         let phone = KeychainService.load(key: "user_phone") ?? ""
+        guard !phone.isEmpty else { return }  // 未登录时白名单不生效
         if UserDefaults.standard.bool(forKey: "is_permanent_vip") || Self.permanentVIPPhones.contains(phone) {
             isPremium = true
             currentPlanName = "永久会员"
