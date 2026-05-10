@@ -61,7 +61,7 @@ struct ProfileView: View {
                                 requestReview()
                             }
                             Divider().padding(.leading, 52)
-                            MenuRow(icon: "doc.text", iconColor: .blue, title: "隐私政策") {
+                            MenuRow(icon: "doc.text", iconColor: Color(hex: "#C3161B"), title: "隐私政策") {
                                 openURL(URL(string: "https://vmingstudio.com/privacy.html")!)
                             }
                             Divider().padding(.leading, 52)
@@ -206,12 +206,12 @@ struct UserInfoCard: View {
                             .fill(isPremium
                                   ? LinearGradient(colors: [Color.yellow.opacity(0.3), Color.orange.opacity(0.2)],
                                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                                  : LinearGradient(colors: [Color(hex: "#007AFF").opacity(0.15), Color(hex: "#007AFF").opacity(0.08)],
+                                  : LinearGradient(colors: [Color(hex: "#C3161B").opacity(0.15), Color(hex: "#C3161B").opacity(0.08)],
                                                    startPoint: .topLeading, endPoint: .bottomTrailing))
                             .frame(width: 60, height: 60)
                         Image(systemName: isPremium ? "crown.fill" : "person.fill")
                             .font(.system(size: 26))
-                            .foregroundColor(isPremium ? .yellow : Color(hex: "#007AFF"))
+                            .foregroundColor(isPremium ? .yellow : Color(hex: "#C3161B"))
                     }
 
                     VStack(alignment: .leading, spacing: 5) {
@@ -341,7 +341,7 @@ struct PremiumStatusCard: View {
                 Button(action: { onBindPhone?() }) {
                     HStack(spacing: 10) {
                         Image(systemName: "iphone.and.arrow.forward")
-                            .foregroundColor(Color(hex: "#007AFF"))
+                            .foregroundColor(Color(hex: "#C3161B"))
                             .font(.system(size: 16))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("绑定手机号，权益跨设备同步")
@@ -357,7 +357,7 @@ struct PremiumStatusCard: View {
                             .foregroundColor(.secondary.opacity(0.5))
                     }
                     .padding(14)
-                    .background(Color(hex: "#007AFF").opacity(0.07))
+                    .background(Color(hex: "#C3161B").opacity(0.07))
                     .cornerRadius(12)
                 }
                 .buttonStyle(.plain)
@@ -539,8 +539,8 @@ struct SubscriptionCard: View {
             // ── 权益列表 ──────────────────────────────────────
             VStack(spacing: 10) {
                 BenefitRow(icon: "doc.viewfinder.fill", iconColor: Color(hex: "#FF9500"), text: "AI 识别无限次（印刷体 + 手写体）")
-                BenefitRow(icon: "doc.fill",            iconColor: Color(hex: "#34C759"), text: "图片转 PDF 无限次")
-                BenefitRow(icon: "doc.richtext.fill",   iconColor: Color(hex: "#007AFF"), text: "PDF 转 Word 无限次")
+                BenefitRow(icon: "doc.fill",            iconColor: Color(hex: "#3A7D44"), text: "图片转 PDF 无限次")
+                BenefitRow(icon: "doc.richtext.fill",   iconColor: Color(hex: "#C3161B"), text: "PDF 转 Word 无限次")
                 BenefitRow(icon: "square.and.arrow.up.fill", iconColor: Color(hex: "#AF52DE"), text: "导出文件无水印")
                 BenefitRow(icon: "clock.fill",          iconColor: Color(hex: "#FF6B00"), text: "历史记录保留最近 20 条")
             }
@@ -570,6 +570,16 @@ struct SubscriptionCard: View {
             Button(action: {
                 if let product = selectedProduct {
                     Task { await subscriptionManager.purchase(product: product) }
+                } else if subscriptionManager.products.isEmpty {
+                    // 产品未加载成功，重试一次
+                    Task {
+                        await subscriptionManager.loadProducts()
+                        if let product = selectedProduct {
+                            await subscriptionManager.purchase(product: product)
+                        } else {
+                            subscriptionManager.purchaseError = "商品加载失败，请检查网络后重试"
+                        }
+                    }
                 } else {
                     onNeedLogin()
                 }
@@ -617,7 +627,7 @@ struct SubscriptionCard: View {
                         }
                     }
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#007AFF"))
+                    .foregroundColor(Color(hex: "#C3161B"))
                     Text("和")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -627,7 +637,7 @@ struct SubscriptionCard: View {
                         }
                     }
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#007AFF"))
+                    .foregroundColor(Color(hex: "#C3161B"))
                 }
             }
 
@@ -826,8 +836,8 @@ struct GuestFeatureCard: View {
 
     private let features: [(icon: String, color: Color, text: String)] = [
         ("doc.viewfinder.fill", Color(hex: "#FF9500"), "智能 OCR 识别印刷体与手写体"),
-        ("doc.fill",            Color(hex: "#34C759"), "图片一键转 PDF"),
-        ("doc.richtext.fill",   Color(hex: "#007AFF"), "PDF 转 Word 精准还原排版"),
+        ("doc.fill",            Color(hex: "#3A7D44"), "图片一键转 PDF"),
+        ("doc.richtext.fill",   Color(hex: "#C3161B"), "PDF 转 Word 精准还原排版"),
         ("square.and.arrow.up.fill", Color(hex: "#AF52DE"), "无水印导出，专业呈现"),
     ]
 
@@ -835,7 +845,7 @@ struct GuestFeatureCard: View {
         VStack(spacing: 16) {
             HStack {
                 Image(systemName: "camera.viewfinder")
-                    .foregroundColor(Color(hex: "#007AFF"))
+                    .foregroundColor(Color(hex: "#C3161B"))
                     .font(.system(size: 18))
                 Text("扫描鸡能帮你做什么")
                     .font(.system(size: 16, weight: .bold))
@@ -875,7 +885,7 @@ struct GuestFeatureCard: View {
                     .padding(.vertical, 14)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                            colors: [Color(hex: "#C3161B"), Color(hex: "#9A1015")],
                             startPoint: .leading, endPoint: .trailing
                         )
                     )

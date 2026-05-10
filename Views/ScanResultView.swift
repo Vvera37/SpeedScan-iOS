@@ -167,6 +167,18 @@ struct ScanResultView: View {
     private func exportWord() {
         // 无需登录检查：非会员可导出（有水印），会员无水印
         guard !isExporting else { return }
+
+        // 无文字内容时提示，不进行导出
+        let cleanText = ScanViewModel.renderDots(in: displayText).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanText.isEmpty else {
+            viewModel.alertItem = AlertItem(
+                title: Text("暂无可导出的内容"),
+                message: Text("未识别到任何文字，无法生成文件。请换张图片再试"),
+                dismissButton: .default(Text("知道了"))
+            )
+            return
+        }
+
         isExporting = true
 
         Task {
@@ -209,6 +221,12 @@ struct ScanResultView: View {
            let rootVC = windowScene.windows.first?.rootViewController {
             var topVC = rootVC
             while let presented = topVC.presentedViewController { topVC = presented }
+            // iPad 必须设置 popover 源，否则崩溃
+            if let popover = ac.popoverPresentationController {
+                popover.sourceView = topVC.view
+                popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: topVC.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
             topVC.present(ac, animated: true)
         }
     }
@@ -276,7 +294,7 @@ struct TranslateToggleButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if isTranslating {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#007AFF"))).scaleEffect(0.85)
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#C3161B"))).scaleEffect(0.85)
                     Text("翻译中…")
                 } else {
                     Image(systemName: isTranslated ? "arrow.uturn.backward.circle" : "character.bubble").font(.system(size: 15))
@@ -284,10 +302,10 @@ struct TranslateToggleButton: View {
                 }
             }
             .font(.system(size: 14, weight: .medium))
-            .foregroundColor(Color(hex: "#007AFF"))
+            .foregroundColor(Color(hex: "#C3161B"))
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .background(Color(hex: "#007AFF").opacity(0.08))
+            .background(Color(hex: "#C3161B").opacity(0.08))
             .cornerRadius(12)
         }
         .disabled(isTranslating)
@@ -323,9 +341,9 @@ struct BottomActionBar: View {
                     Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc").font(.system(size: 16))
                     Text(copySuccess ? "已复制" : "复制全文").font(.system(size: 15, weight: .medium))
                 }
-                .foregroundColor(Color(hex: "#007AFF"))
+                .foregroundColor(Color(hex: "#C3161B"))
                 .padding(.vertical, 14).padding(.horizontal, 16)
-                .background(Color(hex: "#007AFF").opacity(0.1))
+                .background(Color(hex: "#C3161B").opacity(0.1))
                 .cornerRadius(12)
             }
             .animation(.easeInOut(duration: 0.2), value: copySuccess)
@@ -344,7 +362,7 @@ struct BottomActionBar: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     isExporting ? AnyView(Color.gray) : AnyView(
-                        LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                        LinearGradient(colors: [Color(hex: "#C3161B"), Color(hex: "#9A1015")],
                                        startPoint: .leading, endPoint: .trailing)
                     )
                 )

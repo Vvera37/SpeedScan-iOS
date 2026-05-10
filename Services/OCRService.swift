@@ -28,7 +28,7 @@ enum OCRService {
         let url = URL(string: "\(baseURL)/api/ocr/handwriting")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 60
+        request.timeoutInterval = 120
         // 带上 UUID 和 Token，后端二次验证并记录
         for (k, v) in UsageService.buildHeaders(token: token) {
             request.setValue(v, forHTTPHeaderField: k)

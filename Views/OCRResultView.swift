@@ -43,9 +43,9 @@ struct OCRResultView: View {
                         Spacer(minLength: 100)
                     }
                 }
-
-                // ── 底部操作栏（复制 + 导出 Word，与 ScanResultView 一致）
-                HStack(spacing: 12) {
+                .safeAreaInset(edge: .bottom) {
+                    // ── 底部操作栏
+                    HStack(spacing: 12) {
                     Button(action: copyText) {
                         HStack(spacing: 8) {
                             Image(systemName: copySuccess ? "checkmark.circle.fill" : "doc.on.doc")
@@ -53,9 +53,9 @@ struct OCRResultView: View {
                             Text(copySuccess ? "已复制" : "复制全文")
                                 .font(.system(size: 15, weight: .medium))
                         }
-                        .foregroundColor(Color(hex: "#007AFF"))
+                        .foregroundColor(Color(hex: "#C3161B"))
                         .padding(.vertical, 14).padding(.horizontal, 16)
-                        .background(Color(hex: "#007AFF").opacity(0.1))
+                        .background(Color(hex: "#C3161B").opacity(0.1))
                         .cornerRadius(12)
                     }
                     .animation(.easeInOut(duration: 0.2), value: copySuccess)
@@ -78,7 +78,7 @@ struct OCRResultView: View {
                         .background(
                             isExporting ? AnyView(Color.gray) :
                             AnyView(LinearGradient(
-                                colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                                colors: [Color(hex: "#C3161B"), Color(hex: "#9A1015")],
                                 startPoint: .leading, endPoint: .trailing
                             ))
                         )
@@ -88,6 +88,7 @@ struct OCRResultView: View {
                 }
                 .padding(.horizontal, 20).padding(.vertical, 14)
                 .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4))
+                }
             }
             .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("识别结果")
@@ -143,6 +144,11 @@ struct OCRResultView: View {
            let root = scene.windows.first?.rootViewController {
             var top = root
             while let presented = top.presentedViewController { top = presented }
+            if let popover = ac.popoverPresentationController {
+                popover.sourceView = top.view
+                popover.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
             top.present(ac, animated: true)
         }
     }
