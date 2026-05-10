@@ -162,7 +162,7 @@ struct UsageLimitView: View {
                                 )
                             }
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#007AFF"))
+                            .foregroundColor(Color(hex: "#C3161B"))
                             Text("和")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(UIColor.tertiaryLabel))
@@ -172,7 +172,7 @@ struct UsageLimitView: View {
                                 )
                             }
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#007AFF"))
+                            .foregroundColor(Color(hex: "#C3161B"))
                         }
                     }
                     .padding(.bottom, 40)

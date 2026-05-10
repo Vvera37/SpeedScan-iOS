@@ -142,7 +142,7 @@ struct ScanView: View {
                 Text("智能 OCR · 文字识别").font(.subheadline).foregroundColor(.secondary)
             }
             Spacer()
-            Image(systemName: "camera.viewfinder").font(.system(size: 28)).foregroundColor(Color(hex: "#007AFF"))
+            Image(systemName: "camera.viewfinder").font(.system(size: 28)).foregroundColor(Color(hex: "#C3161B"))
         }
         .padding(.horizontal, 20).padding(.top, 16)
     }
@@ -151,13 +151,13 @@ struct ScanView: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 ScanActionCard(icon: "camera.fill", title: "拍照扫描", subtitle: "拍照识别文字",
-                               gradient: [Color(hex: "#007AFF"), Color(hex: "#0055CC")]) { showSystemCamera = true }
+                               gradient: [Color(hex: "#C3161B"), Color(hex: "#9A1015")]) { showSystemCamera = true }
                 ScanActionCard(icon: "photo.on.rectangle", title: "相册导入", subtitle: "选图片识别文字，可导出 Word",
-                               gradient: [Color(hex: "#34C759"), Color(hex: "#248A3D")]) { showPHPicker = true }
+                               gradient: [Color(hex: "#3A7D44"), Color(hex: "#2A5C32")]) { showPHPicker = true }
             }
             ScanActionCardWide(icon: "photo.stack.fill", title: "拍照转 PDF",
                                subtitle: "多张拍摄，一键合并为 PDF 文件",
-                               gradient: [Color(hex: "#5856D6"), Color(hex: "#3634A3")]) {
+                               gradient: [Color(hex: "#DDBE89"), Color(hex: "#B89A60")]) {
                 guard appState.recordGuestPPT() else {
                     usageLimitFeature = .imagesPdf
                     showUsageLimit = true
@@ -277,7 +277,8 @@ struct ScanView: View {
 
     // 本地 Vision OCR 预检，返回置信度和文字
     private func tryLocalOCR(image: UIImage) async -> (text: String, confidence: Double, ocrResult: OCRResult)? {
-        guard let cgImage = image.cgImage else { return nil }
+        let resized = resizeImage(image, maxDimension: 1500)
+        guard let cgImage = resized.cgImage else { return nil }
         var request = RecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
@@ -453,7 +454,7 @@ struct ProcessingCard: View {
     var body: some View {
         HStack(spacing: 16) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#007AFF")))
+                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#C3161B")))
                 .scaleEffect(1.2)
             VStack(alignment: .leading, spacing: 4) {
                 Text("正在识别中" + String(repeating: ".", count: dotCount))
@@ -483,11 +484,11 @@ struct RecentRecordRow: View {
             // 文档图标
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: "#007AFF").opacity(0.1))
+                    .fill(Color(hex: "#C3161B").opacity(0.1))
                     .frame(width: 44, height: 44)
                 Image(systemName: "doc.text.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(Color(hex: "#007AFF"))
+                    .foregroundColor(Color(hex: "#C3161B"))
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -503,8 +504,8 @@ struct RecentRecordRow: View {
                         .font(.system(size: 11, weight: .medium))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "#007AFF").opacity(0.1))
-                        .foregroundColor(Color(hex: "#007AFF"))
+                        .background(Color(hex: "#C3161B").opacity(0.1))
+                        .foregroundColor(Color(hex: "#C3161B"))
                         .cornerRadius(4)
                 }
             }
@@ -602,13 +603,13 @@ struct OCRLoadingView: View {
                 // 动态图标
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#007AFF").opacity(0.15))
+                        .fill(Color(hex: "#C3161B").opacity(0.15))
                         .frame(width: 120, height: 120)
                         .scaleEffect(pulse ? 1.12 : 1.0)
                         .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulse)
                     Image(systemName: "text.viewfinder")
                         .font(.system(size: 52))
-                        .foregroundColor(Color(hex: "#007AFF"))
+                        .foregroundColor(Color(hex: "#C3161B"))
                 }
                 .onAppear { pulse = true }
 
@@ -646,7 +647,7 @@ struct OCRSimulatedProgressBar: View {
                     .fill(Color(white: 0.25))
                     .frame(height: 4)
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(hex: "#007AFF"))
+                    .fill(Color(hex: "#C3161B"))
                     .frame(width: geo.size.width * progress, height: 4)
                     .animation(.easeInOut(duration: 0.4), value: progress)
             }

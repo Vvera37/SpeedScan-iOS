@@ -8,13 +8,14 @@
 
 import SwiftUI
 import VisionKit
+import Vision
 import AVFoundation
 import PhotosUI
 
 // MARK: - 颜色常量
 fileprivate extension Color {
-    static let themeGreen  = Color(hex: "#34C759")
-    static let themeBlue   = Color(hex: "#007AFF")
+    static let themeGreen  = Color(hex: "#3A7D44")
+    static let themeBlue   = Color(hex: "#C3161B")
     static let tabInactive = Color(white: 0.5)
 }
 
@@ -529,6 +530,29 @@ struct CameraView: View {
         Task {
             let token = KeychainService.load(key: "auth_token")
             do {
+                // ── 第一步：苹果本地 Vision 先跑 ──────────────────────
+                let localResult = try? await runLocalOCR(image: image)
+
+                // 无文字：直接报错，不耗费 AI 配额
+                if let result = localResult, result.text.isEmpty {
+                    await MainActor.run {
+                        isRecognizing = false
+                        ocrError = "未能识别到文字，请确认图片清晰"
+                    }
+                    return
+                }
+
+                // 置信度足够：直接用本地结果
+                if let result = localResult, result.confidence >= 0.82, result.text.count >= 15 {
+                    await MainActor.run {
+                        isRecognizing = false
+                        ocrResult = result.text
+                        showOCRResult = true
+                    }
+                    return
+                }
+
+                // ── 第二步：本地信心不足，上 Claude AI ─────────────────
                 let text = try await OCRService.recognizeHandwriting(image: image, token: token)
                 await MainActor.run {
                     isRecognizing = false
@@ -547,6 +571,49 @@ struct CameraView: View {
                 }
             }
         }
+    }
+
+    /// 苹果 Vision 本地识别，返回文字 + 平均置信度
+    private func runLocalOCR(image: UIImage) async throws -> (text: String, confidence: Double) {
+        // 先缩图，长边限制 1500px，避免大图导致 Vision 较慢
+        let size = image.size
+        let maxDim: CGFloat = 1500
+        let resized: UIImage
+        if max(size.width, size.height) > maxDim {
+            let scale = maxDim / max(size.width, size.height)
+            let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+            resized = UIGraphicsImageRenderer(size: newSize).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+        } else {
+            resized = image
+        }
+        guard let cgImage = resized.cgImage else { return (text: "", confidence: 0) }
+
+        var request = RecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        request.recognitionLanguages = [
+            Locale.Language(identifier: "zh-Hant"),
+            Locale.Language(identifier: "zh-Hans"),
+            Locale.Language(identifier: "en-US"),
+            Locale.Language(identifier: "ja-JP"),
+            Locale.Language(identifier: "ko-KR")
+        ]
+        request.automaticallyDetectsLanguage = true
+
+        let observations = try await request.perform(on: cgImage, orientation: .up)
+        guard !observations.isEmpty else { return (text: "", confidence: 0) }
+
+        let text = observations
+            .compactMap { $0.topCandidates(1).first?.string }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let totalConfidence = observations.compactMap { $0.topCandidates(1).first?.confidence }.reduce(0, +)
+        let avgConfidence = Double(totalConfidence / Float(observations.count))
+
+        return (text: text, confidence: avgConfidence)
     }
 
     private func handleScanned(_ images: [UIImage]) {
@@ -658,11 +725,11 @@ struct PPTGuideView: View {
                 // 图标
                 ZStack {
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(hex: "#5856D6").opacity(0.12))
+                        .fill(Color(hex: "#DDBE89").opacity(0.12))
                         .frame(width: 88, height: 88)
                     Image(systemName: "doc.richtext.fill")
                         .font(.system(size: 44, weight: .medium))
-                        .foregroundColor(Color(hex: "#5856D6"))
+                        .foregroundColor(Color(hex: "#DDBE89"))
                 }
                 .padding(.bottom, 20)
 
@@ -691,10 +758,10 @@ struct PPTGuideView: View {
                             Text("拍照扫描").font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(LinearGradient(colors: [Color(hex: "#5856D6"), Color(hex: "#3634A3")],
+                        .background(LinearGradient(colors: [Color(hex: "#DDBE89"), Color(hex: "#B89A60")],
                                                    startPoint: .leading, endPoint: .trailing))
                         .cornerRadius(16)
-                        .shadow(color: Color(hex: "#5856D6").opacity(0.35), radius: 10, x: 0, y: 5)
+                        .shadow(color: Color(hex: "#DDBE89").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(ScaleButtonStyle())
 
@@ -723,8 +790,8 @@ struct PPTGuideStep: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
-                Circle().fill(Color(hex: "#5856D6").opacity(0.15)).frame(width: 28, height: 28)
-                Text(number).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#5856D6"))
+                Circle().fill(Color(hex: "#DDBE89").opacity(0.15)).frame(width: 28, height: 28)
+                Text(number).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#DDBE89"))
             }
             Text(text).font(.system(size: 15)).foregroundColor(.primary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -750,27 +817,31 @@ struct PPTPreviewView: View {
         ZStack {
             Color(UIColor.systemBackground).ignoresSafeArea()
             VStack(spacing: 0) {
-                // 顶部导航栏（对齐系统 NavigationBar 样式）
+                // 顶部导航栏
                 HStack {
                     Button(action: { showAbandonAlert = true }) {
                         Text("放弃")
-                            .font(.system(size: 17))          // 系统导航按钮标准字号
+                            .font(.system(size: 17))
                             .foregroundColor(Color(hex: "#FF3B30"))
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(Color(hex: "#FF3B30").opacity(0.1))
+                            .clipShape(Capsule())
                     }
                     Spacer()
                     Text("PDF 预览 (\(pages.count)页)")
-                        .font(.system(size: 17, weight: .semibold))  // 系统标题字号
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(Color(UIColor.label))
                     Spacer()
                     Button(action: onConvert) {
                         Text("生成 PDF")
                             .font(.system(size: 17))
-                            .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#5856D6"))
+                            .foregroundColor(pages.isEmpty ? Color(UIColor.tertiaryLabel) : Color(hex: "#DDBE89"))
+                            .padding(.horizontal, 14).padding(.vertical, 7)
+                            .background(pages.isEmpty ? Color(UIColor.tertiarySystemFill) : Color(hex: "#DDBE89").opacity(0.1))
+                            .clipShape(Capsule())
                     }.disabled(pages.isEmpty)
                 }
-                .padding(.horizontal, 16).padding(.vertical, 11)  // 系统 NavigationBar 标准内边距
-
-                Divider()
+                .padding(.horizontal, 16).padding(.vertical, 11)
 
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -820,11 +891,11 @@ struct PPTPreviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            LinearGradient(colors: [Color(hex: "#5856D6"), Color(hex: "#3634A3")],
+                            LinearGradient(colors: [Color(hex: "#DDBE89"), Color(hex: "#B89A60")],
                                            startPoint: .leading, endPoint: .trailing)
                         )
                         .cornerRadius(16)
-                        .shadow(color: Color(hex: "#5856D6").opacity(0.35), radius: 10, x: 0, y: 5)
+                        .shadow(color: Color(hex: "#DDBE89").opacity(0.35), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(ScaleButtonStyle())
                 }
@@ -909,7 +980,7 @@ struct PPTConvertingView: View {
             VStack(spacing: 32) {
                 Spacer()
                 Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 56))
-                    .foregroundColor(Color(hex: "#34C759"))
+                    .foregroundColor(Color(hex: "#3A7D44"))
                     .rotationEffect(.degrees(progress * 360))
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: progress)
                 VStack(spacing: 12) {
@@ -917,8 +988,8 @@ struct PPTConvertingView: View {
                     Text("请保持网络连接，请勿关闭应用").font(.system(size: 13)).foregroundColor(Color(white: 0.55))
                 }
                 VStack(spacing: 8) {
-                    ProgressView(value: progress).tint(Color(hex: "#34C759")).padding(.horizontal, 40)
-                    Text("\(progressPercent)%").font(.system(size: 14, weight: .medium)).foregroundColor(Color(hex: "#34C759"))
+                    ProgressView(value: progress).tint(Color(hex: "#3A7D44")).padding(.horizontal, 40)
+                    Text("\(progressPercent)%").font(.system(size: 14, weight: .medium)).foregroundColor(Color(hex: "#3A7D44"))
                 }
                 Button(action: onStop) {
                     Text("停止生成").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)

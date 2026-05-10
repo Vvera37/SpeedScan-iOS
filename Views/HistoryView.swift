@@ -92,7 +92,7 @@ struct HistoryView: View {
                             .foregroundColor(Color(UIColor.tertiaryLabel))
                         + Text("会员用户")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color(hex: "#007AFF"))
+                            .foregroundColor(Color(hex: "#C3161B"))
                         + Text("最多保留 \(HistoryView.vipLimit) 条")
                             .font(.system(size: 12))
                             .foregroundColor(Color(UIColor.tertiaryLabel))
@@ -108,7 +108,7 @@ struct HistoryView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#34C759"))
+                            .foregroundColor(Color(hex: "#3A7D44"))
                             .padding(.top, 1)
                         Text("文档加密存储于本机，从不上传云端\n数据归您所有，随时可删除")
                             .font(.system(size: 12))
@@ -162,8 +162,8 @@ struct HistoryCardRow: View {
                     .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color(hex: "#007AFF").opacity(0.1))
-                    .foregroundColor(Color(hex: "#007AFF"))
+                    .background(Color(hex: "#C3161B").opacity(0.1))
+                    .foregroundColor(Color(hex: "#C3161B"))
                     .cornerRadius(6)
 
                 Spacer()
@@ -193,7 +193,7 @@ struct HistoryCardRow: View {
                 if record.wordFileExists {
                     Text("点击预览")
                         .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "#007AFF"))
+                        .foregroundColor(Color(hex: "#C3161B"))
                 }
             }
         }
@@ -260,7 +260,7 @@ struct NotLoggedInEmptyState: View {
         VStack(spacing: 20) {
             Image(systemName: "doc.text.clock")
                 .font(.system(size: 64))
-                .foregroundColor(Color(hex: "#007AFF").opacity(0.6))
+                .foregroundColor(Color(hex: "#C3161B").opacity(0.6))
             Text("导出记录保存在本设备")
                 .font(.system(size: 18, weight: .semibold))
             Text("游客可查看最近 5 条\n登录后可查看最近 15 条")
@@ -281,11 +281,11 @@ struct EmptyHistoryState: View {
             // 插图区
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#007AFF").opacity(0.08))
+                    .fill(Color(hex: "#C3161B").opacity(0.08))
                     .frame(width: 120, height: 120)
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.system(size: 52, weight: .light))
-                    .foregroundColor(Color(hex: "#007AFF").opacity(0.7))
+                    .foregroundColor(Color(hex: "#C3161B").opacity(0.7))
             }
             .padding(.bottom, 24)
 
@@ -319,11 +319,11 @@ struct EmptyHistoryState: View {
                 .padding(.vertical, 16)
                 .padding(.horizontal, 48)
                 .background(
-                    LinearGradient(colors: [Color(hex: "#007AFF"), Color(hex: "#0055CC")],
+                    LinearGradient(colors: [Color(hex: "#C3161B"), Color(hex: "#9A1015")],
                                    startPoint: .leading, endPoint: .trailing)
                 )
                 .cornerRadius(16)
-                .shadow(color: Color(hex: "#007AFF").opacity(0.35), radius: 10, x: 0, y: 5)
+                .shadow(color: Color(hex: "#C3161B").opacity(0.35), radius: 10, x: 0, y: 5)
             }
             .buttonStyle(ScaleButtonStyle())
 

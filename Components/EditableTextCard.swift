@@ -30,7 +30,7 @@ struct EditableTextCard: View {
                             .foregroundColor(.secondary)
                         Label("可编辑", systemImage: "pencil")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#007AFF").opacity(0.8))
+                            .foregroundColor(Color(hex: "#C3161B").opacity(0.8))
                     }
                 }
             }

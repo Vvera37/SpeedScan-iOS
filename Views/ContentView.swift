@@ -44,7 +44,7 @@ struct MainTabView: View {
                 }
                 .tag(2)
         }
-        .accentColor(Color(hex: "#007AFF"))
+        .accentColor(Color(hex: "#C3161B"))
         .onReceive(NotificationCenter.default.publisher(for: .switchToScanTab)) { _ in
             selectedTab = 0
         }
